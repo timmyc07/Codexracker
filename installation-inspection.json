@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "inspectedAt": "2026-10-15T05:31:51.956Z",
+  "result": "blocked",
+  "packageRoot": "C:\\Program Files\\WindowsApps\\OpenAI.Codex_26.1007.9446.0_x64__2p2nqsd0c76g0",
+  "executable": "C:\\Program Files\\WindowsApps\\OpenAI.Codex_26.1007.9446.0_x64__2p2nqsd0c76g0\\app\\ChatGPT.exe",
+  "runtimeName": "owl",
+  "archive": {
+    "path": "C:\\Program Files\\WindowsApps\\OpenAI.Codex_26.1007.9446.0_x64__2p2nqsd0c76g0\\app\\resources\\app.asar",
+    "sizeBytes": 567412548,
+    "sha256": "356c13dc715816436fa1cf31e9f77863f62ea7b7cacc465b397313246eb29325",
+    "fingerprintUnchangedDuringInspection": true,
+    "packageName": "openai-codex-electron",
+    "packageVersion": "26.1007.71326",
+    "main": ".vite/build/early-bootstrap.js",
+    "mainSizeBytes": 3304,
+    "preloadCandidates": [
+      ".vite/build/browser-page-preload.js",
+      ".vite/build/preload.js",
+      ".vite/build/sandbox-preload.js"
+    ],
+    "injectionVerified": false
+  },
+  "fuses": {
+    "status": "unverified",
+    "embeddedAsarIntegrity": "unknown",
+    "reason": "Could not find sentinel in the provided Electron binary, fuses are only supported in Electron 12 and higher"
+  },
+  "blockers": [
+    "Installation write permission has not been verified by this read-only tool; consult the ACL evidence",
+    "ASAR integrity configuration is enabled or unknown; patching is blocked",
+    "Preload-to-renderer injection and backup/restore acceptance have not passed"
+  ],
+  "applicationFilesModified": false,
+  "applicationLaunched": false,
+  "realRequestsSent": false
+}

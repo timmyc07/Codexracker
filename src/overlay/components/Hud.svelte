@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { overlayStore } from '../store';
+  import { overlayStore } from '../store'
 </script>
 
 <section class="hud" aria-label="Token cache HUD">
@@ -29,7 +29,9 @@
     min-width: 160px;
     padding: 12px;
     color: #e8eefc;
-    font: 12px/1.4 system-ui, sans-serif;
+    font:
+      12px/1.4 system-ui,
+      sans-serif;
     background: rgb(20 25 38 / 78%);
     border: 1px solid rgb(255 255 255 / 18%);
     border-radius: 12px;

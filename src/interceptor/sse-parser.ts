@@ -1,20 +1,21 @@
 export interface UsageMetrics {
-  inputTokens?: number;
-  outputTokens?: number;
-  promptCacheHitTokens?: number;
-  promptCacheReadTokens?: number;
-  durationMs?: number;
+  inputTokens?: number
+  outputTokens?: number
+  promptCacheHitTokens?: number
+  promptCacheReadTokens?: number
+  durationMs?: number
 }
 
 const numberFrom = (value: unknown): number | undefined =>
-  typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+  typeof value === 'number' && Number.isFinite(value) ? value : undefined
 
 const readMetrics = (value: unknown): UsageMetrics => {
-  if (!value || typeof value !== 'object') return {};
+  if (!value || typeof value !== 'object') return {}
 
-  const record = value as Record<string, unknown>;
-  const usage = (record.usage ?? record.response?.usage) as Record<string, unknown> | undefined;
-  const promptTokensDetails = usage?.prompt_tokens_details as Record<string, unknown> | undefined;
+  const record = value as Record<string, unknown>
+  const response = record.response as Record<string, unknown> | undefined
+  const usage = (record.usage ?? response?.usage) as Record<string, unknown> | undefined
+  const promptTokensDetails = usage?.prompt_tokens_details as Record<string, unknown> | undefined
 
   return {
     inputTokens: numberFrom(usage?.prompt_tokens),
@@ -24,14 +25,14 @@ const readMetrics = (value: unknown): UsageMetrics => {
     ),
     promptCacheReadTokens: numberFrom(usage?.prompt_cache_read_tokens),
     durationMs: numberFrom(record.duration_ms),
-  };
-};
+  }
+}
 
 export function parseSseEvent(data: string): UsageMetrics {
   try {
-    return readMetrics(JSON.parse(data));
+    return readMetrics(JSON.parse(data))
   } catch {
-    return {};
+    return {}
   }
 }
 
@@ -46,5 +47,5 @@ export function parseSseStream(chunk: string): UsageMetrics[] {
         .join('\n'),
     )
     .filter(Boolean)
-    .map(parseSseEvent);
+    .map(parseSseEvent)
 }

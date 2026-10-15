@@ -27,10 +27,7 @@
     "owner": "NT AUTHORITY\\SYSTEM",
     "usersRightsOnAsar": "ReadAndExecute, Synchronize",
     "usersRightsOnResourcesDirectory": "ReadAndExecute, Synchronize",
-    "fullControlPrincipalsObserved": [
-      "NT SERVICE\\TrustedInstaller",
-      "NT AUTHORITY\\SYSTEM"
-    ],
+    "fullControlPrincipalsObserved": ["NT SERVICE\\TrustedInstaller", "NT AUTHORITY\\SYSTEM"],
     "currentProcessAdministratorsGroup": "deny-only",
     "aclGrantsCurrentIdentityModification": false,
     "writeAttempted": false,
@@ -38,16 +35,17 @@
   },
   "workspace": {
     "path": "D:\\codes\\codex_token_caches",
-    "gitHistoryPresent": false,
-    "gitEvidence": "git status --short --branch: fatal: not a git repository (or any of the parent directories): .git",
-    "independentBranchCreated": false,
+    "gitHistoryPresent": true,
+    "gitEvidence": "55bd0a5 first commit; origin/main 已推送",
+    "independentBranchCreated": true,
+    "branch": "feat/installation-feasibility",
     "majorImplementationStarted": false
   },
   "acceptance": {
     "packageLocation": "verified",
     "archiveReadable": "verified",
     "archiveWritable": "blocked-by-acl",
-    "archiveEntryPoint": "not-inspected",
+    "archiveEntryPoint": ".vite/build/early-bootstrap.js; 已由官方 ASAR 工具確認可讀",
     "embeddedAsarIntegrity": "not-verified",
     "updaterBehavior": "not-verified",
     "preloadToRendererInjection": "not-run",
@@ -61,7 +59,7 @@
     "preload-hook.ts 僅匯出函式，沒有啟動時注入成功的證據。",
     "Fetch 攔截器使用 response.clone().text() 等待完整回應，尚未逐段解析。",
     "現有 E2E 將 CODEX_APP_ENTRY 傳入 electron.launch 的 args，沒有指定已安裝 App 的 executablePath，且僅檢查 HUD 元素，未送出真實請求。",
-    "ESLint 設定尚未強制無分號或每檔少於 1000 行。"
+    "已補上 ESLint 的無分號與每檔最多 999 行規則，並涵蓋 TypeScript、MJS 與 Svelte。"
   ],
   "openSourceResearch": [
     {
@@ -78,7 +76,6 @@
     }
   ],
   "resumeRequirements": [
-    "在具 Git 歷史的專案中建立獨立分支，再開始重大實作。",
     "取得正常安裝與更新流程支援、目前使用者可修改的目標安裝；單純複製至可寫目錄不能算作原安裝驗收通過。",
     "確認 runtime 與 ASAR 入口、完整性限制及更新方式後，執行最小注入與備份還原驗證。",
     "第一階段驗收通過後，才實作通訊攔截、HUD、真實請求 E2E 與更新補丁。"
