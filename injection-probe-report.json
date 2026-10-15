@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-15T05:49:33.056Z",
+  "result": "minimal-injection-and-restore-passed",
+  "targetScope": "managed-writable-copy-only",
+  "packageIdentity": "OpenAI.Codex_26.1007.9446.0_x64__2p2nqsd0c76g0",
+  "integrity": {
+    "fuseBinary": "app/chrome.dll",
+    "embeddedAsarIntegrity": "enabled",
+    "onlyLoadAppFromAsar": "enabled",
+    "originalEmbeddedHeader": {
+      "expectedHeaderHash": "fa8c9b0734ea4e4dfefe176a3375a9ed8e16c0c848d01a8a864d995d0348592d",
+      "matchesArchive": true,
+      "resourceOffset": 4752064
+    },
+    "mismatchRejectedAtRuntime": true,
+    "nativeFusesModified": false,
+    "copiedExecutableExpectedHashUpdated": true,
+    "copiedExecutablePublisherSignatureInvalidatedDuringProbe": true
+  },
+  "experiments": [
+    {
+      "mode": "harness",
+      "staleIntegrity": true,
+      "exit": {
+        "code": 2147483651,
+        "signal": null
+      },
+      "proof": null,
+      "asarIntegrityFailureObserved": true,
+      "packageIdentityFailureObserved": false
+    },
+    {
+      "mode": "harness",
+      "staleIntegrity": false,
+      "exit": {
+        "code": 0,
+        "signal": null
+      },
+      "proof": {
+        "result": "passed",
+        "nonce": "868f8407-e341-4bf0-9818-ab4025f03039",
+        "preloadReachedRenderer": true,
+        "domMarkerVisible": true,
+        "isolatedProfile": true,
+        "pageProtocol": "data:",
+        "runtimeVersions": {
+          "electron": "155.0.8059.40",
+          "chrome": "155.0.8059.40",
+          "node": "24.19.0"
+        }
+      },
+      "asarIntegrityFailureObserved": false,
+      "packageIdentityFailureObserved": false
+    },
+    {
+      "mode": "application",
+      "staleIntegrity": false,
+      "exit": {
+        "code": 0,
+        "signal": null
+      },
+      "proof": {
+        "result": "passed",
+        "nonce": "4bcbc591-bf95-4a54-af43-49db599a7887",
+        "preloadReachedRenderer": true,
+        "domMarkerVisible": true,
+        "isolatedProfile": true,
+        "pageProtocol": "app:",
+        "runtimeVersions": {
+          "electron": "155.0.8059.40",
+          "chrome": "155.0.8059.40",
+          "node": "24.19.0"
+        }
+      },
+      "asarIntegrityFailureObserved": false,
+      "packageIdentityFailureObserved": false
+    }
+  ],
+  "duplicateAttempt": {
+    "rejectedBeforeWriting": true,
+    "archiveFingerprintUnchanged": true
+  },
+  "restoration": {
+    "verifiedAt": "2026-10-15T05:46:00.510Z",
+    "result": "passed",
+    "originalInstallationUnchanged": true,
+    "copiedFilesRestoredExactly": true,
+    "filesVerifiedPerInstallation": 3596,
+    "bytesVerifiedPerInstallation": 2319256526,
+    "restoredHashes": {
+      "app.asar": "356c13dc715816436fa1cf31e9f77863f62ea7b7cacc465b397313246eb29325",
+      "ChatGPT.exe": "ee785aec9ff3058afb01069a8b455fb17e46f3c33611a867efd3db37de1f05f3"
+    },
+    "nativeFusesModified": false
+  },
+  "currentCopyState": "restored-to-original",
+  "authenticode": {
+    "restoredCopiedExecutable": "Valid",
+    "modifiedProbeExecutable": "HashMismatch",
+    "checkedWithoutChangingCertificateTrust": true
+  },
+  "originalInstallationModified": false,
+  "windowsAppsAclModified": false,
+  "packageIdentityRegistered": false,
+  "certificatesInstalled": false,
+  "loginDataCopied": false,
+  "realModelRequestsSent": false,
+  "operationalFindings": [
+    "After the deliberate native integrity failure, the executable briefly remained locked; the initial restoration attempt failed with EBUSY and was retried successfully. The runner now retries EBUSY for up to about eight seconds and preserves backups on failure."
+  ],
+  "limits": [
+    "A fresh-profile app: renderer passed; login and full backend operation were not tested.",
+    "Per-entry payload tampering with an unchanged ASAR header was not separately tested.",
+    "Playwright automation, request transport, actual token tracking, and automatic update rebuilding are not validated.",
+    "A writable copy does not establish that the original signed Store package can be modified or updated in place."
+  ],
+  "references": [
+    "https://github.com/electron/asar",
+    "https://github.com/electron/fuses",
+    "https://github.com/aviad-benhamo/tool-codex-rtl-patch"
+  ]
+}

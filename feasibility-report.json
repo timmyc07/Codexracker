@@ -3,8 +3,8 @@
   "inspectedOn": "2026-10-15",
   "timezone": "Asia/Taipei",
   "stage": 1,
-  "result": "blocked",
-  "summary": "已找到可讀取的 Windows Codex 套件與 ASAR，但目前執行身分未獲 ACL 修改權限。依第一階段停止條件，不進行補丁或後續依賴注入的實作。",
+  "result": "minimal-injection-and-restore-passed-on-writable-copy",
+  "summary": "依使用者授權建立可寫副本。已確認 Owl 在 chrome.dll 啟用完整性驗證，實際驗證雜湊不符會拒絕啟動、相符雜湊可讓真實 App 的 Preload 到達 Renderer，並完成全檔還原核對。原 WindowsApps 安裝未修改；Playwright、完整後端與更新仍未驗收。",
   "installation": {
     "packageIdentity": "OpenAI.Codex_26.1007.9446.0_x64__2p2nqsd0c76g0",
     "packageRoot": "C:\\Program Files\\WindowsApps\\OpenAI.Codex_26.1007.9446.0_x64__2p2nqsd0c76g0",
@@ -39,24 +39,25 @@
     "gitEvidence": "55bd0a5 first commit; origin/main 已推送",
     "independentBranchCreated": true,
     "branch": "feat/installation-feasibility",
-    "majorImplementationStarted": false
+    "majorImplementationStarted": true
   },
   "acceptance": {
     "packageLocation": "verified",
     "archiveReadable": "verified",
     "archiveWritable": "blocked-by-acl",
     "archiveEntryPoint": ".vite/build/early-bootstrap.js; 已由官方 ASAR 工具確認可讀",
-    "embeddedAsarIntegrity": "not-verified",
+    "embeddedAsarIntegrity": "enabled; located in chrome.dll; header mismatch rejected at runtime",
     "updaterBehavior": "not-verified",
-    "preloadToRendererInjection": "not-run",
-    "backupAndRestoreRoundTrip": "not-run",
+    "preloadToRendererInjection": "passed-on-writable-copy; original app: renderer",
+    "backupAndRestoreRoundTrip": "passed; all 3596 original and copied files verified",
+    "writableCopy": "verified; original installation remains read-only",
     "playwrightLaunchInstalledRuntime": "not-run",
     "actualRequestTransport": "not-verified",
     "realRequestE2E": "not-run"
   },
   "existingSkeletonFindings": [
-    "patch-asar.ts 僅使用正規表示式替換 preload 字串，尚未操作 ASAR、備份或還原。",
-    "preload-hook.ts 僅匯出函式，沒有啟動時注入成功的證據。",
+    "注入實驗使用官方 ASAR 工具重包；probe-copy.mjs 負責副本備份、標記注入、預期雜湊更新及還原。",
+    "Token 攔截用的 preload-hook.ts 仍未接線；目前實測通過的是獨立診斷標記。",
     "Fetch 攔截器使用 response.clone().text() 等待完整回應，尚未逐段解析。",
     "現有 E2E 將 CODEX_APP_ENTRY 傳入 electron.launch 的 args，沒有指定已安裝 App 的 executablePath，且僅檢查 HUD 元素，未送出真實請求。",
     "已補上 ESLint 的無分號與每檔最多 999 行規則，並涵蓋 TypeScript、MJS 與 Svelte。"
@@ -76,8 +77,8 @@
     }
   ],
   "resumeRequirements": [
-    "取得正常安裝與更新流程支援、目前使用者可修改的目標安裝；單純複製至可寫目錄不能算作原安裝驗收通過。",
-    "確認 runtime 與 ASAR 入口、完整性限制及更新方式後，執行最小注入與備份還原驗證。",
-    "第一階段驗收通過後，才實作通訊攔截、HUD、真實請求 E2E 與更新補丁。"
+    "目前驗收範圍依使用者後續授權改為可寫副本；不能將副本成功視為原 WindowsApps 安裝可直接改寫。",
+    "下一階段仍需確認實際請求通道、Playwright 啟動與已登入使用情境。",
+    "商店更新後重建副本、同步預期雜湊與重新注入的流程仍需獨立驗收。"
   ]
 }

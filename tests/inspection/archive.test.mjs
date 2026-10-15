@@ -84,7 +84,7 @@ test('a readable installation never passes injection acceptance from metadata al
   assert.equal(report.archive.fingerprintUnchangedDuringInspection, true)
   assert.equal(report.archive.injectionVerified, false)
   assert.equal(report.fuses.embeddedAsarIntegrity, 'unknown')
-  assert.ok(report.blockers.some((reason) => reason.includes('patching is blocked')))
+  assert.equal(report.embeddedIntegrity.matchesArchive, false)
   assert.equal(report.applicationFilesModified, false)
   assert.equal(report.applicationLaunched, false)
   assert.equal(report.realRequestsSent, false)

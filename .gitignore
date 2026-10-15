@@ -1,5 +1,6 @@
 node_modules/
 .pnpm-store/
+.local-runtime/
 dist/
 coverage/
 test-results/

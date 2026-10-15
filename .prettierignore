@@ -1,4 +1,5 @@
 .pnpm-store/
+.local-runtime/
 node_modules/
 dist/
 coverage/

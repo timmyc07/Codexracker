@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
-  "inspectedAt": "2026-10-15T05:31:51.956Z",
+  "assessmentScope": "read-only-metadata; writable-copy acceptance is recorded separately",
+  "inspectedAt": "2026-10-15T05:51:31.921Z",
   "result": "blocked",
   "packageRoot": "C:\\Program Files\\WindowsApps\\OpenAI.Codex_26.1007.9446.0_x64__2p2nqsd0c76g0",
   "executable": "C:\\Program Files\\WindowsApps\\OpenAI.Codex_26.1007.9446.0_x64__2p2nqsd0c76g0\\app\\ChatGPT.exe",
@@ -22,14 +23,21 @@
     "injectionVerified": false
   },
   "fuses": {
-    "status": "unverified",
-    "embeddedAsarIntegrity": "unknown",
-    "reason": "Could not find sentinel in the provided Electron binary, fuses are only supported in Electron 12 and higher"
+    "binary": "C:\\Program Files\\WindowsApps\\OpenAI.Codex_26.1007.9446.0_x64__2p2nqsd0c76g0\\app\\chrome.dll",
+    "status": "read",
+    "embeddedAsarIntegrity": "enabled",
+    "onlyLoadAppFromAsar": "enabled",
+    "runAsNode": "disabled"
+  },
+  "embeddedIntegrity": {
+    "expectedHeaderHash": "fa8c9b0734ea4e4dfefe176a3375a9ed8e16c0c848d01a8a864d995d0348592d",
+    "matchesArchive": true,
+    "resourceOffset": 4752064
   },
   "blockers": [
     "Installation write permission has not been verified by this read-only tool; consult the ACL evidence",
-    "ASAR integrity configuration is enabled or unknown; patching is blocked",
-    "Preload-to-renderer injection and backup/restore acceptance have not passed"
+    "ASAR integrity is enabled or unknown; changing the archive requires verified matching integrity metadata in a managed copy",
+    "This read-only inspection does not execute injection or restore acceptance; consult the separate experiment report"
   ],
   "applicationFilesModified": false,
   "applicationLaunched": false,

@@ -1,0 +1,13 @@
+{
+  "verifiedAt": "2026-10-15T05:46:00.510Z",
+  "result": "passed",
+  "originalInstallationUnchanged": true,
+  "copiedFilesRestoredExactly": true,
+  "filesVerifiedPerInstallation": 3596,
+  "bytesVerifiedPerInstallation": 2319256526,
+  "restoredHashes": {
+    "app.asar": "356c13dc715816436fa1cf31e9f77863f62ea7b7cacc465b397313246eb29325",
+    "ChatGPT.exe": "ee785aec9ff3058afb01069a8b455fb17e46f3c33611a867efd3db37de1f05f3"
+  },
+  "nativeFusesModified": false
+}

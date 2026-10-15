@@ -5,6 +5,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { extractFile, listPackage } from '@electron/asar'
 import { FuseState, FuseV1Options, getCurrentFuseWire } from '@electron/fuses'
+import { headerHash, integrityRecord } from './owl-integrity.mjs'
 
 function archivePath(value) {
   if (typeof value !== 'string' || !value || value.includes('\0')) {
@@ -77,12 +78,23 @@ export async function inspectInstallation(packageRoot) {
   )
   const before = await fingerprint(archive)
   const structure = inspectArchive(archive)
-  const fuses = await inspectFuses(executable)
+  const fuseBinary = path.join(app, 'chrome.dll')
+  const fuses = { binary: fuseBinary, ...(await inspectFuses(fuseBinary)) }
+  const expectedHeaderHash = headerHash(archive)
+  const binary = await readFile(executable)
+  const record = integrityRecord(expectedHeaderHash)
+  const offset = binary.indexOf(record)
+  const embeddedIntegrity = {
+    expectedHeaderHash,
+    matchesArchive: offset >= 0 && binary.indexOf(record, offset + 1) === -1,
+    resourceOffset: offset >= 0 ? offset : null,
+  }
   const after = await fingerprint(archive)
   if (before !== after)
     throw new Error('ASAR changed during inspection; rerun after update completes')
   return {
     schemaVersion: 1,
+    assessmentScope: 'read-only-metadata; writable-copy acceptance is recorded separately',
     inspectedAt: new Date().toISOString(),
     result: 'blocked',
     packageRoot: root,
@@ -96,12 +108,15 @@ export async function inspectInstallation(packageRoot) {
       ...structure,
     },
     fuses,
+    embeddedIntegrity,
     blockers: [
       'Installation write permission has not been verified by this read-only tool; consult the ACL evidence',
       ...(fuses.embeddedAsarIntegrity !== 'disabled'
-        ? ['ASAR integrity configuration is enabled or unknown; patching is blocked']
+        ? [
+            'ASAR integrity is enabled or unknown; changing the archive requires verified matching integrity metadata in a managed copy',
+          ]
         : []),
-      'Preload-to-renderer injection and backup/restore acceptance have not passed',
+      'This read-only inspection does not execute injection or restore acceptance; consult the separate experiment report',
     ],
     applicationFilesModified: false,
     applicationLaunched: false,

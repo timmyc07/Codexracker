@@ -10,6 +10,7 @@ export default [
       'dist/**',
       'node_modules/**',
       '.pnpm-store/**',
+      '.local-runtime/**',
       'coverage/**',
       'test-results/**',
       'playwright-report/**',
