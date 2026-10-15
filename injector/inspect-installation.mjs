@@ -58,6 +58,7 @@ export async function inspectFuses(executable) {
       embeddedAsarIntegrity: describe(FuseV1Options.EnableEmbeddedAsarIntegrityValidation),
       onlyLoadAppFromAsar: describe(FuseV1Options.OnlyLoadAppFromAsar),
       runAsNode: describe(FuseV1Options.RunAsNode),
+      nodeCliInspectArguments: describe(FuseV1Options.EnableNodeCliInspectArguments),
     }
   } catch (error) {
     return {

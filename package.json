@@ -11,7 +11,8 @@
     "format:write": "prettier . --write",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test tests/electron-e2e"
+    "test:launch": "playwright test tests/launch --workers=1 --timeout=60000",
+    "inspect:update": "node injector/inspect-update.mjs"
   },
   "dependencies": {
     "lowdb": "^7.0.1",

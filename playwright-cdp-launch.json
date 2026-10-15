@@ -1,0 +1,25 @@
+{
+  "result": "passed",
+  "method": "spawn-managed-copy-and-playwright-connectOverCDP",
+  "pageProtocol": "app:",
+  "preloadMarkerVerified": true,
+  "domMarkerVerified": true,
+  "playwrightClickVerified": true,
+  "probeProof": {
+    "result": "passed",
+    "nonce": "f6dfaf10-00de-45c9-8276-ad640c74caa7",
+    "preloadReachedRenderer": true,
+    "domMarkerVisible": true,
+    "isolatedProfile": true,
+    "pageProtocol": "app:",
+    "runtimeVersions": {
+      "electron": "155.0.8059.40",
+      "chrome": "155.0.8059.40",
+      "node": "24.19.0"
+    },
+    "windowsUpdater": {
+      "currentPackageFamily": null
+    }
+  },
+  "realModelRequestsSent": false
+}

@@ -2,7 +2,7 @@
 
 Windows Codex 桌面版的 Token 與快取用量追蹤專案。
 
-目前為 TypeScript / Svelte / lowdb 骨架。已在目前 Windows Owl runtime 的可寫副本驗證最小注入與逐位元還原；Token 攔截、HUD 接線、Playwright 與更新補丁尚未完成。
+目前為 TypeScript / Svelte / lowdb 骨架。第一階段已在目前 Windows Owl runtime 的可寫副本驗證最小注入、Playwright Renderer 控制與逐位元還原，並確認更新來源與副本重建方式。Token 攔截、HUD 接線、真實請求 E2E 與自動更新補丁尚未完成。
 
 ## 實作順序
 
@@ -15,7 +15,7 @@ Windows Codex 桌面版的 Token 與快取用量追蹤專案。
 
 ASAR 入口為 `.vite/build/early-bootstrap.js`，主頁 Preload 為 `.vite/build/preload.js`。Owl 的 Fuses 位於 `chrome.dll`；目前已啟用 `EnableEmbeddedAsarIntegrityValidation` 與 `OnlyLoadAppFromAsar`。`ChatGPT.exe` 嵌有 `resources\\app.asar` 的 SHA256 標頭雜湊。雜湊不符的副本已實際被 runtime 拒絕啟動；更新副本中的預期雜湊後，真實 App 的 `app:` Renderer 成功讀取 Preload 標記。詳見 [唯讀檢查輸出](installation-inspection.json)。
 
-修改副本中執行檔的雜湊記錄會使其原廠 Authenticode 簽章失效。實驗沒有關閉完整性驗證、修改 Fuses、變更 WindowsApps 權限、註冊 MSIX、安裝憑證或複製登入資料。這次驗證僅涵蓋新設定檔啟動到 Renderer 的最小注入，不代表登入、完整後端操作或商店更新已通過。
+修改副本中執行檔的雜湊記錄會使其原廠 Authenticode 簽章失效。實驗沒有關閉完整性驗證、修改 Fuses、變更 WindowsApps 權限、註冊 MSIX、安裝憑證或複製登入資料。這次驗證涵蓋新設定檔啟動與 Renderer 控制，不代表登入、完整後端操作或實際商店升級已通過。
 
 ## 第一階段檢查
 
@@ -25,6 +25,8 @@ ASAR 入口為 `.vite/build/early-bootstrap.js`，主頁 Preload 為 `.vite/buil
 pnpm install --frozen-lockfile --ignore-scripts
 pnpm inspect:installation 'C:\Program Files\WindowsApps\OpenAI.Codex_26.1007.9446.0_x64__2p2nqsd0c76g0'
 pnpm test:inspection
+pnpm test:launch
+pnpm inspect:update
 pnpm lint
 pnpm test
 pnpm build
@@ -59,7 +61,23 @@ node injector/verify-restoration.mjs
 
 此方案參考了 [Codex RTL 的可寫副本與雜湊更新流程](https://github.com/aviad-benhamo/tool-codex-rtl-patch)；ASAR 操作使用 [官方 @electron/asar](https://github.com/electron/asar)，Fuses 讀取使用 [官方 @electron/fuses](https://github.com/electron/fuses)。沒有執行第三方安裝器。
 
-`test:e2e` 仍是未完成的骨架，不能作為真實請求或本機安裝啟動成功的證據。
+`test:launch` 是實機啟動測試，不送出模型請求；真實請求 E2E 留到第四階段。
+
+## Playwright 啟動驗證
+
+`pnpm test:launch` 會準備診斷注入、以 Node 啟動副本、用 Playwright `chromium.connectOverCDP` 連到副本設定檔產生的本機端點，驗證真實 `app:` 頁面的 Preload 與 DOM 標記，並實際點擊一個暫時加入的測試按鈕。測試結束後關閉副本、還原並核對全部原始檔案。此命令需要已建立且已還原的實驗副本。
+
+目前 `_electron.launch` 實測在 10 秒逾時，未取得可控制的 ElectronApplication；Owl 的 `EnableNodeCliInspectArguments` 為關閉狀態，而 Playwright 原生 Electron 啟動使用 `--inspect=0`。保留原 Fuses，採用已實測通過的 Renderer CDP 控制。它不提供 Playwright Electron 主程序 API。參見 [Playwright Electron 文件](https://playwright.dev/docs/api/class-electron) 與 [實機啟動結果](playwright-cdp-launch.json)。
+
+## 更新方式驗證
+
+目前註冊的 `OpenAI.Codex` 是 Store 簽章套件，狀態為 `Ok`。原 App 的 Windows 更新程式同時包含商店路徑與原生 MSIX 更新路徑，兩者初始化都要求目前套件身分。唯讀更新檢查回報 `up_to_date`，沒有下載或安裝更新。
+
+可寫副本實測 `windows-updater.node.getCurrentPackageFamily()` 回傳 `null`，不具原套件的更新身分。因此選定的更新流程是：原安裝完成更新後，讀取新的註冊套件位置，確認來源指紋穩定且原 App 與副本均已關閉，再從同版本完整 runtime 建立新副本、重新注入並更新該副本的預期 ASAR 雜湊；驗證通過後才切換，保留上一份副本以便還原。
+
+`pnpm inspect:update` 唯讀查詢註冊套件，連續核對兩次 ASAR、啟動執行檔、`chrome.dll` 與更新原生模組的指紋，再與複製時記錄的原版基準比較。它不以已注入副本的指紋判斷商店更新，也不執行重建。來源變動時，本命令保守回報延後；真正的重建程序仍須檢查執行狀態。
+
+更新判斷的測試涵蓋版本／路徑變更、同版本 ASAR 替換、僅原生 runtime 變更、來源不穩定，以及任一 App 執行時延後。這些是模擬變更測試；目前沒有可用的新版本，尚未發生實際商店升級。自動監看、切換、重新補丁與失敗回復屬於第四階段，不能將本次機制驗證當作其完成證據。詳見 [來源指紋](update-source-inspection.json) 與 [第一階段驗收](phase-one-validation.json)。
 
 只保存正規化用量，不保存提示詞或回應本文。成本按管理區模型費率估算，不代表官方帳單。
 

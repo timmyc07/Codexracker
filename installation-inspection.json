@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "assessmentScope": "read-only-metadata; writable-copy acceptance is recorded separately",
-  "inspectedAt": "2026-10-15T05:51:31.921Z",
+  "inspectedAt": "2026-10-15T06:07:15.859Z",
   "result": "blocked",
   "packageRoot": "C:\\Program Files\\WindowsApps\\OpenAI.Codex_26.1007.9446.0_x64__2p2nqsd0c76g0",
   "executable": "C:\\Program Files\\WindowsApps\\OpenAI.Codex_26.1007.9446.0_x64__2p2nqsd0c76g0\\app\\ChatGPT.exe",
@@ -27,7 +27,8 @@
     "status": "read",
     "embeddedAsarIntegrity": "enabled",
     "onlyLoadAppFromAsar": "enabled",
-    "runAsNode": "disabled"
+    "runAsNode": "disabled",
+    "nodeCliInspectArguments": "disabled"
   },
   "embeddedIntegrity": {
     "expectedHeaderHash": "fa8c9b0734ea4e4dfefe176a3375a9ed8e16c0c848d01a8a864d995d0348592d",

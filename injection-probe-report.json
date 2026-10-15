@@ -112,7 +112,7 @@
   "limits": [
     "A fresh-profile app: renderer passed; login and full backend operation were not tested.",
     "Per-entry payload tampering with an unchanged ASAR header was not separately tested.",
-    "Playwright automation, request transport, actual token tracking, and automatic update rebuilding are not validated.",
+    "Playwright launch and update-source verification are now recorded separately in phase-one-validation.json. Request transport, actual token tracking, and automatic update rebuilding remain unvalidated.",
     "A writable copy does not establish that the original signed Store package can be modified or updated in place."
   ],
   "references": [

@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-15T06:08:31.513Z",
+  "stage": 1,
+  "result": "feasible-on-managed-writable-copy-with-playwright-cdp",
+  "originalPackage": "OpenAI.Codex_26.1007.9446.0_x64__2p2nqsd0c76g0",
+  "nativeElectronLaunch": {
+    "result": "not-supported-in-current-probe",
+    "executableSpecified": true,
+    "isolatedProfile": true,
+    "timeoutMs": 10000,
+    "observedFailure": "TimeoutError: Timeout 10000ms exceeded; test process exited with code 1",
+    "noCopiedAppProcessesObservedAfterFailure": true,
+    "playwrightVersion": "1.64.0",
+    "nodeCliInspectArguments": "disabled",
+    "requiredArgumentFromInstalledPlaywright": "--inspect=0",
+    "reference": "https://playwright.dev/docs/api/class-electron"
+  },
+  "selectedPlaywrightMethod": {
+    "result": "passed",
+    "method": "spawn-managed-copy-and-playwright-connectOverCDP",
+    "pageProtocol": "app:",
+    "preloadMarkerVerified": true,
+    "domMarkerVerified": true,
+    "playwrightClickVerified": true,
+    "probeProof": {
+      "result": "passed",
+      "nonce": "f6dfaf10-00de-45c9-8276-ad640c74caa7",
+      "preloadReachedRenderer": true,
+      "domMarkerVisible": true,
+      "isolatedProfile": true,
+      "pageProtocol": "app:",
+      "runtimeVersions": {
+        "electron": "155.0.8059.40",
+        "chrome": "155.0.8059.40",
+        "node": "24.19.0"
+      },
+      "windowsUpdater": {
+        "currentPackageFamily": null
+      }
+    },
+    "realModelRequestsSent": false
+  },
+  "updateMechanism": {
+    "actualRegisteredDistribution": "Store",
+    "registeredPackageStatus": "Ok",
+    "inspectedBundle": "app.asar/.vite/build/bootstrap-iULMfRBf.js",
+    "windowsUpdaterNativeModule": "resources/native/windows-updater.node",
+    "routesObservedInInstalledSource": ["Windows Store updater", "Native MSIX updater"],
+    "bothRoutesRequireCurrentPackageFamily": true,
+    "copiedRuntimePackageFamily": null,
+    "copiedRuntimeHasStoreUpdateIdentity": false,
+    "originalInformationOnlyCheck": {
+      "checkedOn": "2026-10-15",
+      "installedVersion": "26.1007.71326",
+      "installedBuildVersion": "20398",
+      "installedReleaseChannel": "prod",
+      "status": "up_to_date",
+      "downloadOrInstallRequested": false
+    },
+    "sourceFingerprintStatus": "current",
+    "twoSourceObservationsStable": true,
+    "fingerprintFiles": [
+      "resources/app.asar",
+      "ChatGPT.exe",
+      "chrome.dll",
+      "resources/native/windows-updater.node"
+    ],
+    "selectedCopyUpdateWorkflow": [
+      "Observe completion of the original signed package update",
+      "Discover the active registered package and verify stable source fingerprints",
+      "Verify both original App and copy are closed",
+      "Stage a full matching runtime copy and retain the prior working copy",
+      "Apply the injection and matching embedded ASAR header hash to the new copy",
+      "Validate launch and only then switch to the new copy"
+    ],
+    "workflowImplementationStatus": "Source inspection and decision logic implemented; automatic staging, switching and repatching belong to phase four",
+    "simulatedTests": [
+      "Package identity or location changes",
+      "Same-version ASAR changes",
+      "Native runtime, launcher, or updater module changes",
+      "Unstable source observation",
+      "Defer while either App runs"
+    ],
+    "actualStoreUpgradePerformed": false,
+    "actualUpgradeLimitation": "The original information-only updater reported up_to_date; no eligible update was installed or forced."
+  },
+  "restoration": {
+    "verifiedAt": "2026-10-15T06:04:09.124Z",
+    "result": "passed",
+    "originalInstallationUnchanged": true,
+    "copiedFilesRestoredExactly": true,
+    "filesVerifiedPerInstallation": 3596,
+    "bytesVerifiedPerInstallation": 2319256526,
+    "restoredHashes": {
+      "app.asar": "356c13dc715816436fa1cf31e9f77863f62ea7b7cacc465b397313246eb29325",
+      "ChatGPT.exe": "ee785aec9ff3058afb01069a8b455fb17e46f3c33611a867efd3db37de1f05f3"
+    },
+    "nativeFusesModified": false
+  },
+  "boundaries": {
+    "originalInstallationModified": false,
+    "fusesModified": false,
+    "loginDataCopied": false,
+    "modelRequestsSent": false,
+    "automaticWatcherInstalled": false
+  },
+  "nextStep": "Stage two: investigate the actual usage transport. Logged-in real-request E2E and actual update/repatch lifecycle remain separate acceptance work."
+}

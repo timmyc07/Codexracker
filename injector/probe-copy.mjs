@@ -83,7 +83,7 @@ export async function restoreCopy() {
   return { restored: true, originalHashes: state.originalHashes }
 }
 
-async function repackProbe(source, destination, nonce) {
+async function repackProbe(source, destination, nonce, playwright) {
   const { header } = getRawHeader(source)
   const pkg = JSON.parse(extractFile(source, 'package.json').toString())
   const main = path.normalize(pkg.main)
@@ -92,8 +92,8 @@ async function repackProbe(source, destination, nonce) {
   const preloadCode = extractFile(source, preload).toString()
   if (mainCode.includes(marker) || preloadCode.includes(marker)) throw new Error('Already injected')
   const replacements = new Map([
-    [main, Buffer.from(mainProbe(nonce) + mainCode)],
-    [preload, Buffer.from(preloadCode + preloadProbe(nonce))],
+    [main, Buffer.from(mainProbe(nonce, { playwright }) + mainCode)],
+    [preload, Buffer.from(preloadCode + preloadProbe(nonce, { playwright }))],
   ])
   const streams = []
   function visit(entries, parent = '') {
@@ -127,8 +127,8 @@ async function repackProbe(source, destination, nonce) {
 }
 
 export async function prepareProbe(mode) {
-  if (!['harness', 'application'].includes(mode))
-    throw new Error('Mode must be harness or application')
+  if (!['harness', 'application', 'playwright'].includes(mode))
+    throw new Error('Mode must be harness, application or playwright')
   const manifest = await assertCopy()
   const expected = (name) => manifest.files.find((f) => f.path === name)?.sha256
   // Each experiment starts from the untouched copy, never from a previous patch.
@@ -188,7 +188,7 @@ export async function prepareProbe(mode) {
     await writeFile(path.join(source, 'preload.cjs'), preloadProbe(state.nonce))
     await createPackage(source, staged)
   } else {
-    await repackProbe(archive, staged, state.nonce)
+    await repackProbe(archive, staged, state.nonce, mode === 'playwright')
   }
   const newHeaderHash = headerHash(staged)
   const patchedExe = replaceEmbeddedIntegrity(

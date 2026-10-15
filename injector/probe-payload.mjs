@@ -1,5 +1,5 @@
 // These payloads observe only our nonce and DOM marker, never application content.
-export function mainProbe(nonce) {
+export function mainProbe(nonce, { playwright = false } = {}) {
   return `;(() => {
     const { app, ipcMain } = require('electron')
     const fs = require('node:fs')
@@ -14,6 +14,9 @@ export function mainProbe(nonce) {
       throw new Error('Probe refuses to use a shared application profile')
     }
     console.log('[Codexracker] main probe installed')
+    ipcMain.on('codexracker:probe-stop', (event, value) => {
+      if (${playwright} && value === expected) app.exit(0)
+    })
     ipcMain.on('codexracker:probe-ready', async (event, value) => {
       if (value !== expected) return
       try {
@@ -29,9 +32,17 @@ export function mainProbe(nonce) {
           pageProtocol: new URL(event.sender.getURL()).protocol,
           runtimeVersions: {electron:process.versions.electron,chrome:process.versions.chrome,node:process.versions.node}
         }
+        if (${playwright}) {
+          try {
+            const updater = require(path.join(process.resourcesPath, 'native', 'windows-updater.node'))
+            result.windowsUpdater = {currentPackageFamily:updater.getCurrentPackageFamily() ?? null}
+          } catch (error) {
+            result.windowsUpdater = {readError:error.message}
+          }
+        }
         fs.writeFileSync(output, JSON.stringify(result, null, 2))
         console.log('[Codexracker] preload-to-renderer probe ' + result.result)
-        app.exit(result.result === 'passed' ? 0 : 1)
+        if (!${playwright} || result.result !== 'passed') app.exit(result.result === 'passed' ? 0 : 1)
       } catch (error) {
         fs.writeFileSync(output, JSON.stringify({result:'failed',reason:error.message}))
         app.exit(1)
@@ -40,11 +51,14 @@ export function mainProbe(nonce) {
   })();\n`
 }
 
-export function preloadProbe(nonce) {
+export function preloadProbe(nonce, { playwright = false } = {}) {
   return `\n;(() => {
     const { contextBridge, ipcRenderer } = require('electron')
     const nonce = ${JSON.stringify(nonce)}
-    contextBridge.exposeInMainWorld('codexrackerProbe', {nonce})
+    contextBridge.exposeInMainWorld('codexrackerProbe', {
+      nonce,
+      ...(${playwright} ? {finish:() => ipcRenderer.send('codexracker:probe-stop',nonce)} : {})
+    })
     const ready = () => {
       document.documentElement.dataset.codexrackerProbe = nonce
       console.log('[Codexracker] preload probe ready')

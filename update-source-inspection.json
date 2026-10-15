@@ -1,0 +1,32 @@
+{
+  "inspectedAt": "2026-10-15T06:02:26.562Z",
+  "status": "current",
+  "baseline": {
+    "packageFullName": "OpenAI.Codex_26.1007.9446.0_x64__2p2nqsd0c76g0",
+    "installLocation": "C:\\Program Files\\WindowsApps\\OpenAI.Codex_26.1007.9446.0_x64__2p2nqsd0c76g0",
+    "hashes": {
+      "resources/app.asar": "356c13dc715816436fa1cf31e9f77863f62ea7b7cacc465b397313246eb29325",
+      "ChatGPT.exe": "ee785aec9ff3058afb01069a8b455fb17e46f3c33611a867efd3db37de1f05f3",
+      "chrome.dll": "ce6d04cc948e034c5f18d116a76dbb2cdf84b068c85101e53d168fbb33dadd60",
+      "resources/native/windows-updater.node": "e7b5dbb331b701f8259e90fe14dbcf3665f48a97f6ec9093f3ab7e03ddb430ec"
+    }
+  },
+  "current": {
+    "packageFullName": "OpenAI.Codex_26.1007.9446.0_x64__2p2nqsd0c76g0",
+    "packageFamilyName": "OpenAI.Codex_2p2nqsd0c76g0",
+    "version": "26.1007.9446.0",
+    "architecture": "X64",
+    "signatureKind": "Store",
+    "packageStatus": "Ok",
+    "installLocation": "C:\\Program Files\\WindowsApps\\OpenAI.Codex_26.1007.9446.0_x64__2p2nqsd0c76g0",
+    "hashes": {
+      "resources/app.asar": "356c13dc715816436fa1cf31e9f77863f62ea7b7cacc465b397313246eb29325",
+      "ChatGPT.exe": "ee785aec9ff3058afb01069a8b455fb17e46f3c33611a867efd3db37de1f05f3",
+      "chrome.dll": "ce6d04cc948e034c5f18d116a76dbb2cdf84b068c85101e53d168fbb33dadd60",
+      "resources/native/windows-updater.node": "e7b5dbb331b701f8259e90fe14dbcf3665f48a97f6ec9093f3ab7e03ddb430ec"
+    }
+  },
+  "twoSourceSnapshotsMatched": true,
+  "mutationPerformed": false,
+  "note": "Read-only status check. When a source change is detected, this command conservatively defers; rebuild tooling must verify both Apps are closed."
+}
