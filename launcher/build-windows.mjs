@@ -1,9 +1,10 @@
-import { createRequire } from 'node:module'
 import { execFileSync } from 'node:child_process'
-import { copyFile, cp, mkdir, readFile, readdir, realpath, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { hashFile, workspaceRoot } from '../injector/copy-runtime.mjs'
+import { hashFile } from '../companion/application.mjs'
+const workspaceRoot = fileURLToPath(new URL('../', import.meta.url))
 
 if (process.platform !== 'win32' || process.arch !== 'x64')
   throw new Error('Build requires Windows x64 Node')
@@ -11,7 +12,25 @@ const releaseRoot = path.join(workspaceRoot, 'release')
 const build = path.join(releaseRoot, new Date().toISOString().replaceAll(/[:.]/g, '-'))
 const payload = path.join(build, 'payload')
 const app = path.join(payload, 'app')
-await mkdir(path.join(app, 'injector'), { recursive: true })
+const signature = JSON.parse(
+  execFileSync(
+    'powershell.exe',
+    [
+      '-NoProfile',
+      '-NonInteractive',
+      '-Command',
+      "$ErrorActionPreference='Stop';Import-Module (Join-Path $PSHOME 'Modules/Microsoft.PowerShell.Security/Microsoft.PowerShell.Security.psd1');$s=Get-AuthenticodeSignature -FilePath $env:TT_NODE_FILE;[pscustomobject]@{status=$s.Status.ToString();publisher=$s.SignerCertificate.Subject}|ConvertTo-Json -Compress",
+    ],
+    {
+      windowsHide: true,
+      encoding: 'utf8',
+      env: { ...process.env, TT_NODE_FILE: process.execPath },
+    },
+  ),
+)
+if (signature.status !== 'Valid' || !signature.publisher.includes('CN=OpenJS Foundation,'))
+  throw new Error('Build requires the unmodified, officially signed Node runtime')
+await mkdir(path.join(app, 'companion'), { recursive: true })
 await mkdir(path.join(app, 'launcher'))
 await mkdir(path.join(app, 'dist'))
 await copyFile(process.execPath, path.join(payload, 'node.exe'))
@@ -19,72 +38,34 @@ const license = fileURLToPath(
   new URL(`./licenses/node-${process.version}-LICENSE.txt`, import.meta.url),
 )
 await copyFile(license, path.join(payload, 'NODE-LICENSE.txt'))
+const requireProject = createRequire(import.meta.url)
+const steno = path.resolve(
+  path.dirname(createRequire(requireProject.resolve('lowdb')).resolve('steno')),
+  '../LICENSE',
+)
+const notices = await Promise.all(
+  [
+    ['Svelte', path.join(workspaceRoot, 'node_modules/svelte/LICENSE.md')],
+    ['lowdb', path.join(workspaceRoot, 'node_modules/lowdb/LICENSE')],
+    ['steno', steno],
+  ].map(async ([name, file]) => `${name}\n\n${await readFile(file, 'utf8')}`),
+)
+await writeFile(path.join(payload, 'THIRD-PARTY-NOTICES.txt'), notices.join('\n\n'))
 await writeFile(
   path.join(app, 'package.json'),
   JSON.stringify({ name: 'tokentracker-desktop', private: true, type: 'module' }),
 )
-for (const file of [
-  'runtime-manager.mjs',
-  'runtime-patch.mjs',
-  'repack-archive.mjs',
-  'copy-runtime.mjs',
-  'inspect-update.mjs',
-  'inspect-installation.mjs',
-  'owl-integrity.mjs',
-  'desktop-startup.mjs',
-  'registered-package.ps1',
-  'runtime-processes.ps1',
-])
-  await copyFile(path.join(workspaceRoot, 'injector', file), path.join(app, 'injector', file))
-await copyFile(
-  fileURLToPath(new URL('./worker.mjs', import.meta.url)),
-  path.join(app, 'launcher/worker.mjs'),
-)
-for (const file of ['desktop-main.cjs', 'desktop-preload.cjs'])
+for (const file of ['application.mjs', 'manager.mjs'])
+  await copyFile(path.join(workspaceRoot, 'companion', file), path.join(app, 'companion', file))
+for (const file of ['worker.mjs', 'start.mjs', 'install-shortcut.mjs'])
+  await copyFile(fileURLToPath(new URL(file, import.meta.url)), path.join(app, 'launcher', file))
+for (const file of ['companion.cjs', 'page.js'])
   await copyFile(path.join(workspaceRoot, 'dist', file), path.join(app, 'dist', file))
 
-// Copy only runtime dependencies into ordinary directories: no pnpm links or dev toolchain.
-const packages = new Map()
-async function includePackage(name, requireFrom) {
-  const entry = requireFrom.resolve(name)
-  let directory = path.dirname(await realpath(entry))
-  let metadata
-  for (;;) {
-    try {
-      const candidate = JSON.parse(await readFile(path.join(directory, 'package.json'), 'utf8'))
-      if (candidate.name === name) {
-        metadata = candidate
-        break
-      }
-    } catch (error) {
-      if (error.code !== 'ENOENT') throw error
-    }
-    const parent = path.dirname(directory)
-    if (parent === directory) throw new Error(`Cannot locate package metadata: ${name}`)
-    directory = parent
-  }
-  if (packages.has(name)) {
-    if (packages.get(name) !== metadata.version)
-      throw new Error(`Conflicting runtime dependency: ${name}`)
-    return
-  }
-  packages.set(name, metadata.version)
-  const destination = path.join(app, 'node_modules', name)
-  await mkdir(path.dirname(destination), { recursive: true })
-  await cp(directory, destination, {
-    recursive: true,
-    dereference: true,
-    errorOnExist: true,
-    force: false,
-    filter: (item) => !path.relative(directory, item).split(path.sep).includes('node_modules'),
-  })
-  const requirePackage = createRequire(path.join(directory, 'package.json'))
-  for (const dependency of Object.keys(metadata.dependencies ?? {}).sort())
-    await includePackage(dependency, requirePackage)
-}
-const requireProject = createRequire(path.join(workspaceRoot, 'package.json'))
-for (const name of ['@electron/asar', '@electron/fuses']) await includePackage(name, requireProject)
-
+await copyFile(
+  fileURLToPath(new URL('./TokenTracker.ico', import.meta.url)),
+  path.join(payload, 'TokenTracker.ico'),
+)
 const files = []
 async function inventory(relative = '') {
   for (const entry of await readdir(path.join(payload, relative), { withFileTypes: true })) {
@@ -99,75 +80,40 @@ async function inventory(relative = '') {
   }
 }
 await inventory()
-const manifest = path.join(build, 'manifest.json')
-await writeFile(manifest, JSON.stringify(files))
-const archive = path.join(build, 'payload.zip')
+await writeFile(
+  path.join(payload, 'manifest.json'),
+  JSON.stringify({ version: '0.5.0', files }, null, 2),
+)
+const archive = path.join(build, 'TokenTracker.zip')
 execFileSync(
   'powershell.exe',
   [
     '-NoProfile',
-    '-ExecutionPolicy',
-    'Bypass',
-    '-File',
-    fileURLToPath(new URL('./pack-archive.ps1', import.meta.url)),
-    '-Source',
-    payload,
-    '-Destination',
-    archive,
+    '-NonInteractive',
+    '-Command',
+    "$ErrorActionPreference='Stop';Add-Type -AssemblyName System.IO.Compression.FileSystem;[IO.Compression.ZipFile]::CreateFromDirectory($env:TT_PACK_SOURCE,$env:TT_PACK_DEST,[IO.Compression.CompressionLevel]::Optimal,$false)",
   ],
-  { windowsHide: true, stdio: 'pipe' },
-)
-const hash = await hashFile(archive)
-const hashPath = path.join(build, 'payload.sha256')
-await writeFile(hashPath, hash)
-const executable = path.join(build, 'TokenTracker.exe')
-const icon = path.join(build, 'TokenTracker.ico')
-execFileSync(
-  'powershell.exe',
-  [
-    '-NoProfile',
-    '-ExecutionPolicy',
-    'Bypass',
-    '-File',
-    fileURLToPath(new URL('./create-icon.ps1', import.meta.url)),
-    '-Output',
-    icon,
-  ],
-  { windowsHide: true, stdio: 'pipe' },
-)
-const compiler = path.join(process.env.SystemRoot, 'Microsoft.NET/Framework64/v4.0.30319/csc.exe')
-execFileSync(
-  compiler,
-  [
-    '/nologo',
-    '/target:winexe',
-    '/platform:x64',
-    '/optimize+',
-    '/utf8output',
-    '/reference:System.Windows.Forms.dll',
-    '/reference:System.Drawing.dll',
-    '/reference:System.IO.Compression.dll',
-    '/reference:System.IO.Compression.FileSystem.dll',
-    '/reference:System.Web.Extensions.dll',
-    '/reference:Microsoft.CSharp.dll',
-    `/win32icon:${icon}`,
-    `/resource:${archive},Codexracker.Payload`,
-    `/resource:${manifest},Codexracker.Manifest`,
-    `/resource:${hashPath},Codexracker.Hash`,
-    `/out:${executable}`,
-    fileURLToPath(new URL('./Program.cs', import.meta.url)),
-  ],
-  { windowsHide: true, stdio: 'pipe' },
+  {
+    windowsHide: true,
+    stdio: 'pipe',
+    env: { ...process.env, TT_PACK_SOURCE: payload, TT_PACK_DEST: archive },
+  },
 )
 const report = {
   builtAt: new Date().toISOString(),
-  executable,
-  sha256: await hashFile(executable),
+  directory: payload,
+  archive,
+  sha256: await hashFile(archive),
   nodeVersion: process.version,
-  packages: Object.fromEntries(packages),
+  nodeSha256: await hashFile(process.execPath),
+  nodeSignature: signature.status,
+  nodePublisher: signature.publisher,
   payloadFiles: files.length,
   selfContained: true,
+  unsignedExecutable: false,
   originalCodexRuntimeBundled: false,
+  officialFilesModified: false,
+  tcpDebugServer: false,
 }
 await writeFile(path.join(releaseRoot, 'latest.json'), JSON.stringify(report, null, 2) + '\n')
 console.log(JSON.stringify(report, null, 2))

@@ -1,0 +1,16 @@
+{
+  "testedAt": "2026-10-17T16:01:45.641Z",
+  "result": "passed",
+  "releaseSha256": "4a54844671de8f9440a86f815ccd75eea3e0b0781182476a2c6593d27a27d616",
+  "checks": [
+    "portable-zip-integrity-with-officially-signed-node-as-only-executable",
+    "bundled-node-starts-visible-signed-app-with-mounted-overlay-and-single-instance",
+    "existing-history-and-settings-byte-for-byte-preserved",
+    "launcher-menu-retains-actions-and-closes-without-stopping-codex",
+    "official-app-exit-releases-lock-and-exits-companion"
+  ],
+  "realModelRequestsSent": false,
+  "officialFilesModified": false,
+  "nodeSignature": "Valid",
+  "codeIntegrityBlockEvents": 0
+}

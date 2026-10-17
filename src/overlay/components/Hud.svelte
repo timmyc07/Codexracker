@@ -42,7 +42,14 @@
       next = { ...next, x: next.x < right / 2 ? 0 : right }
     }
     position = next
-    await saveSettings({ ...get(dashboardStore).settings, position: next, minimized })
+    const current = get(dashboardStore).settings
+    if (
+      current.position.x === next.x &&
+      current.position.y === next.y &&
+      current.minimized === minimized
+    )
+      return
+    await saveSettings({ ...current, position: next, minimized })
   }
   function pointerDown(event: PointerEvent) {
     if (event.button !== 0 || (event.target as HTMLElement).closest('button,input,select')) return

@@ -1,0 +1,16 @@
+{
+  "installedAt": "2026-10-17T16:02:31.6619226Z",
+  "result": "passed",
+  "shortcut": "Desktop/TokenTracker.lnk",
+  "target": "officially-signed-node-with-local-launch-menu",
+  "bundleSha256": "05173b036949718f9f0ef07532af7ec53de35497419028da1bd2953795c0fd7f",
+  "releaseSha256": "4a54844671de8f9440a86f815ccd75eea3e0b0781182476a2c6593d27a27d616",
+  "nodeSignature": "Valid",
+  "unsignedExecutable": false,
+  "existingUserMetricsPresent": true,
+  "existingUserMetricsPreserved": true,
+  "officialFilesModified": false,
+  "windowsProtectionSettingsChanged": false,
+  "postInstallDiagnostics": "package-verified",
+  "newCodeIntegrityBlockEvents": 0
+}

@@ -5,7 +5,7 @@ import { dashboardStore, liveStore, storageError } from './store'
 import { get } from 'svelte/store'
 import { localDay } from './summary'
 
-export function mountOverlay(target: HTMLElement = document.body): ShadowRoot {
+export async function mountOverlay(target: HTMLElement = document.body): Promise<ShadowRoot> {
   const existing = target.querySelector('codex-token-cache-hud')?.shadowRoot
   if (existing) return existing
   const host = document.createElement('codex-token-cache-hud')
@@ -13,7 +13,6 @@ export function mountOverlay(target: HTMLElement = document.body): ShadowRoot {
   target.appendChild(host)
   // Reset inherited host styles; component CSS is injected inside this Shadow Root.
   host.style.cssText = 'all:initial;position:fixed;inset:0;pointer-events:none;z-index:2147483647'
-  mount(Hud, { target: shadowRoot })
   let revision = 0
   const unsubscribe = window.codexracker.subscribe((snapshot) => {
     revision += 1
@@ -43,7 +42,9 @@ export function mountOverlay(target: HTMLElement = document.body): ShadowRoot {
       () => storageError.set('本機紀錄讀取失敗。請確認檔案完整並重新啟動。'),
     )
   }
-  void refreshDashboard()
+  // Restore saved settings before resize observers can persist the initial layout.
+  await refreshDashboard()
+  mount(Hud, { target: shadowRoot })
   const midnight = setInterval(() => {
     if (get(dashboardStore).todayDate !== localDay(new Date())) void refreshDashboard()
   }, 60000)

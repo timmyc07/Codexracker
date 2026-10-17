@@ -1,66 +1,30 @@
 import { expect, it, vi } from 'vitest'
 import { errorMessage, runAction } from '../../launcher/worker.mjs'
-
-function fixture(status) {
-  return {
-    synchronize: vi.fn(async () => ({ status })),
-    startDesktop: vi.fn(async () => ({ status: 'started' })),
-    rollback: vi.fn(async () => ({ status: 'rolled-back' })),
-    readProcesses: vi.fn(async () => ({ originalRunning: true, copyRunning: false })),
+it.each(['diagnose', 'sync'])('%s is read-only and never launches Codex', async (action) => {
+  const io = {
+    inspectTracker: vi.fn(async () => ({ status: 'current', version: 'test' })),
+    startTracker: vi.fn(),
+    rollbackTracker: vi.fn(),
   }
-}
-it.each(['defer-running-app', 'defer-unstable-source'])(
-  'does not launch when synchronization returns %s',
-  async (status) => {
-    const io = fixture(status)
-    const events = []
-    await runAction('launch', 'C:/data', {}, (event) => events.push(event), io)
-    expect(io.startDesktop).not.toHaveBeenCalled()
-    expect(events.at(-1)).toMatchObject({ type: 'result', status })
-  },
-)
-it.each(['current', 'activated', 'defer-failed-build', 'defer-rolled-back-build'])(
-  'launches only a verified current or retained version after %s',
-  async (status) => {
-    const io = fixture(status)
-    const events = []
-    await runAction('launch', 'C:/data', {}, (event) => events.push(event), io)
-    expect(io.startDesktop).toHaveBeenCalledExactlyOnceWith('C:/data')
-    expect(events.at(-1)).toMatchObject({ status: 'started' })
-  },
-)
-it('check updates does not start the App; rollback verifies and then launches', async () => {
-  const io = fixture('current')
-  await runAction('sync', 'C:/data', {}, () => {}, io)
-  expect(io.startDesktop).not.toHaveBeenCalled()
-  await runAction('rollback', 'C:/data', {}, () => {}, io)
-  expect(io.rollback).toHaveBeenCalledExactlyOnceWith('C:/data')
-  expect(io.startDesktop).toHaveBeenCalledExactlyOnceWith('C:/data')
-})
-it('dependency diagnosis cannot copy, inject, launch or send model requests', async () => {
-  const io = fixture('current')
   const events = []
-  await runAction(
-    'diagnose',
-    'C:/data',
-    {
-      main: 'installDesktopMain',
-      preload: 'installDesktopPreload',
-    },
-    (event) => events.push(event),
-    io,
-  )
-  expect(io.synchronize).not.toHaveBeenCalled()
-  expect(io.startDesktop).not.toHaveBeenCalled()
-  expect(events.at(-1)).toMatchObject({ status: 'package-verified' })
+  await runAction(action, 'C:/data', 'C:/program', (event) => events.push(event), io)
+  expect(io.startTracker).not.toHaveBeenCalled()
+  expect(io.rollbackTracker).not.toHaveBeenCalled()
+  expect(events.at(-1).status).toBe(action === 'diagnose' ? 'package-verified' : 'current')
 })
-it('errors expose only a useful category without leaking exception payloads', () => {
-  expect(errorMessage({ code: 'EEXIST', message: 'PRIVATE_CONTENT' })).toContain('鎖')
-  expect(errorMessage({ code: 'EPERM', message: 'PRIVATE_CONTENT' })).toContain('存取')
-  expect(errorMessage({ code: 'ENOSPC', message: 'PRIVATE_CONTENT' })).toContain('空間')
-  expect(errorMessage({ code: 'UNKNOWN', message: 'PRIVATE_CONTENT' })).toContain('程式碼完整性')
-  expect(errorMessage({ code: 'UNKNOWN', message: 'PRIVATE_CONTENT' })).not.toContain(
-    'PRIVATE_CONTENT',
-  )
-  expect(errorMessage(new Error('PRIVATE_CONTENT'))).not.toContain('PRIVATE_CONTENT')
+it('launches and rolls back only through the signed-application manager', async () => {
+  const io = {
+    inspectTracker: vi.fn(),
+    startTracker: vi.fn(async () => ({ status: 'started' })),
+    rollbackTracker: vi.fn(async () => ({ status: 'rolled-back' })),
+  }
+  await runAction('launch', 'C:/data', 'C:/program', () => {}, io)
+  await runAction('rollback', 'C:/data', 'C:/program', () => {}, io)
+  expect(io.startTracker).toHaveBeenCalledExactlyOnceWith('C:/data', 'C:/program')
+  expect(io.rollbackTracker).toHaveBeenCalledExactlyOnceWith('C:/data', 'C:/program')
+})
+it('shows useful errors without raw exceptions or protection bypass', () => {
+  for (const code of ['EEXIST', 'EPERM', 'ENOSPC', 'UNKNOWN'])
+    expect(errorMessage({ code, message: 'PRIVATE' })).not.toContain('PRIVATE')
+  expect(errorMessage(new Error('No previous version'))).toContain('尚無')
 })
