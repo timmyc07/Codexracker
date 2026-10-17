@@ -57,6 +57,15 @@ export function installDesktopMain({ app, ipcMain }: Desktop, rendererCode: stri
   ipcMain.on(channels.live, (event, value) => {
     if (!trusted(event)) return
     const incoming = sanitizeLive(value)
+    const freshLimits = (incoming.limitsUpdatedAt ?? 0) >= (live.limitsUpdatedAt ?? 0)
+    if (
+      freshLimits &&
+      incoming.limitsUpdatedAt !== null &&
+      incoming.limitsUpdatedAt !== live.limitsUpdatedAt &&
+      (incoming.limitsStatus === 'ready' || incoming.limitsStatus === 'unknown')
+    ) {
+      void repository.trackQuota(incoming.weekly).then(broadcast, () => broadcast(null))
+    }
     live = {
       ...((incoming.limitsUpdatedAt ?? 0) >= (live.limitsUpdatedAt ?? 0) ? incoming : live),
       run: (incoming.run.updatedAt ?? 0) >= (live.run.updatedAt ?? 0) ? incoming.run : live.run,

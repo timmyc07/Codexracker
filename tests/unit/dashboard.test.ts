@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { MetricsRepository, metricsRepository } from '../../src/storage/metrics-db'
 import { defaultSettings, sanitizeSettings } from '../../src/storage/schema'
-import { summarize } from '../../src/overlay/summary'
+import { dashboard, summarize } from '../../src/overlay/summary'
 
 const metric = {
   recordedAt: '2026-10-15T00:00:00Z',
@@ -97,6 +97,7 @@ describe('token totals and display settings', () => {
   it.each([0, 80, 100])('keeps cached input inside total input for %s cached tokens', (cached) => {
     const summary = summarize([{ ...metric, promptCacheHitTokens: cached }])
     expect(summary.inputTokens).toBe(100)
+    expect(summary.totalTokens).toBe(120)
     expect(summary.promptCacheHitTokens).toBe(cached)
     expect(summary.cacheHitCount).toBe(cached > 0 ? 1 : 0)
   })
@@ -104,10 +105,33 @@ describe('token totals and display settings', () => {
     const summary = summarize([metric, { recordedAt: metric.recordedAt, inputTokens: 100 }])
     expect(summary.inputTokens).toBe(200)
     expect(summary.outputTokens).toBeUndefined()
+    expect(summary.totalTokens).toBeUndefined()
     expect(summary.promptCacheHitTokens).toBeUndefined()
     expect(summarize([]).inputTokens).toBeUndefined()
+    expect(summarize([]).totalTokens).toBe(0)
     expect(
       summarize([{ ...metric, inputTokens: Number.MAX_SAFE_INTEGER }, metric]).inputTokens,
+    ).toBeUndefined()
+  })
+  it('counts today at local midnight boundaries and excludes future records', () => {
+    const now = new Date(2026, 9, 17, 12)
+    const records = [
+      new Date(2026, 9, 16, 23, 59, 59, 999),
+      new Date(2026, 9, 17, 0),
+      new Date(2026, 9, 17, 23, 59, 59, 999),
+      new Date(2026, 9, 18, 0),
+    ].map((at) => ({ ...metric, recordedAt: at.toISOString() }))
+    const result = dashboard(records, settings(), undefined, now)
+    expect(result.total.totalTokens).toBe(480)
+    expect(result.today.totalTokens).toBe(240)
+    expect(result.todayDate).toBe('2026-10-17')
+    expect(dashboard(records, settings(), undefined, new Date(2026, 9, 19)).today.totalTokens).toBe(
+      0,
+    )
+  })
+  it('does not publish unsafe combined totals', () => {
+    expect(
+      summarize([{ ...metric, inputTokens: Number.MAX_SAFE_INTEGER }]).totalTokens,
     ).toBeUndefined()
   })
   it('rejects non-finite or out-of-range display settings', () => {

@@ -1,0 +1,1 @@
+{"result":"passed","selfContained":true,"systemNodeRequired":false,"modelRequestsSent":false,"appLaunched":false,"worker":{"type":"result","status":"package-verified","message":"內含執行環境、模組與桌面產物均可載入。","processes":{"originalRunning":false,"copyRunning":false},"exitCode":0}}

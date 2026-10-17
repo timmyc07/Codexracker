@@ -1,9 +1,13 @@
 <script lang="ts">
   import { liveStore } from '../store'
+  export let now: number
   let refreshing = false
   $: live = $liveStore
   $: run = live.run
-  $: remaining = live.weekly?.remainingPercent
+  $: remaining =
+    live.weekly && (!live.weekly.resetsAt || live.weekly.resetsAt * 1000 > now)
+      ? live.weekly.remainingPercent
+      : undefined
   const labels = {
     idle: '待機',
     working: '思考／工具處理中',
@@ -26,7 +30,7 @@
 
 <div class="runtime">
   <div class="quota-title">
-    <strong><span class="eyebrow">WEEKLY ENERGY</span>Pro 本週剩餘</strong>
+    <strong><span class="eyebrow">WEEKLY BALANCE</span>本週總剩餘額度</strong>
     <strong data-testid="weekly-remaining"
       >{remaining === undefined ? '未知' : `${Math.round(remaining)}%`}</strong
     >
@@ -58,7 +62,8 @@
       )}%
     </div>
   {/if}
-  <div class="session">
+  <details class="session">
+    <summary>即時回合狀態</summary>
     <div class="run-title">
       <span class:streaming={run.status === 'streaming'} data-testid="run-status"
         >{labels[run.status]}</span
@@ -75,12 +80,13 @@
         : run.measured.outputTokens.toLocaleString()}
     </div>
     <div class="details">串流字數不是 Token 數；精確值隨服務端用量通知更新。</div>
-  </div>
+  </details>
 </div>
 
 <style>
   .runtime {
     margin-bottom: 10px;
+    padding: 2px 2px 0;
   }
   .quota-title {
     display: flex;
@@ -89,20 +95,20 @@
     padding: 3px 3px 0;
   }
   .quota-title strong:first-child {
-    font-size: 12px;
+    font-size: 16px;
     font-weight: 600;
   }
   .eyebrow {
     display: block;
-    color: #9b7db5;
-    font-size: 8px;
+    color: #765590;
+    font-size: 11px;
     letter-spacing: 1.6px;
     margin-bottom: 2px;
   }
   .quota-title strong:nth-child(2) {
-    color: #9369bb;
+    color: #77539a;
     margin-left: auto;
-    font-size: 32px;
+    font-size: 40px;
     font-weight: 700;
     line-height: 1.3;
     letter-spacing: -1px;
@@ -114,8 +120,9 @@
     background: #fff9fe;
     border: 1px solid #e5d6f0;
     border-radius: 50%;
-    width: 28px;
-    height: 28px;
+    width: 34px;
+    height: 34px;
+    font-size: 20px;
     padding: 0;
     cursor: pointer;
   }
@@ -142,14 +149,14 @@
     box-shadow: inset 0 2px 2px #ffffff60;
   }
   .details {
-    font-size: 10px;
-    color: #886f9a;
+    font-size: 13px;
+    color: #705980;
     margin-top: 4px;
     overflow-wrap: anywhere;
   }
   .session {
     margin-top: 12px;
-    padding: 11px 12px;
+    padding: 9px 12px;
     background: #fffafee8;
     border: 1px solid #eadff2;
     border-radius: 19px;
@@ -159,7 +166,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    font-size: 10px;
+    font-size: 14px;
     margin-bottom: 7px;
   }
   .run-title > span:first-child {
@@ -177,6 +184,18 @@
   }
   b {
     color: #70518b;
+  }
+  summary {
+    cursor: pointer;
+    font-size: 14px;
+    color: #684c7d;
+  }
+  summary:focus-visible {
+    outline: 2px solid #9573bd;
+    outline-offset: 3px;
+  }
+  .run-title {
+    margin-top: 10px;
   }
   .run-title > .streaming {
     background: #f6dfee;

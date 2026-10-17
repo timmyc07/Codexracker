@@ -21,7 +21,7 @@ const license = fileURLToPath(
 await copyFile(license, path.join(payload, 'NODE-LICENSE.txt'))
 await writeFile(
   path.join(app, 'package.json'),
-  JSON.stringify({ name: 'codexracker-desktop', private: true, type: 'module' }),
+  JSON.stringify({ name: 'tokentracker-desktop', private: true, type: 'module' }),
 )
 for (const file of [
   'runtime-manager.mjs',
@@ -121,8 +121,8 @@ execFileSync(
 const hash = await hashFile(archive)
 const hashPath = path.join(build, 'payload.sha256')
 await writeFile(hashPath, hash)
-const executable = path.join(build, 'Codexracker.exe')
-const icon = path.join(build, 'Codexracker.ico')
+const executable = path.join(build, 'TokenTracker.exe')
+const icon = path.join(build, 'TokenTracker.ico')
 execFileSync(
   'powershell.exe',
   [

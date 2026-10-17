@@ -12,11 +12,11 @@ using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
-[assembly: AssemblyTitle("Codexracker")]
-[assembly: AssemblyProduct("Codexracker")]
+[assembly: AssemblyTitle("TokenTracker")]
+[assembly: AssemblyProduct("TokenTracker")]
 [assembly: AssemblyDescription("Codex desktop token usage tracker")]
-[assembly: AssemblyVersion("0.3.0.0")]
-[assembly: AssemblyFileVersion("0.3.0.0")]
+[assembly: AssemblyVersion("0.4.0.0")]
+[assembly: AssemblyFileVersion("0.4.0.0")]
 
 public sealed class PayloadFile
 {
@@ -176,13 +176,13 @@ internal sealed class LauncherWindow : Form
     internal LauncherWindow(string rootDirectory, bool previewOnly)
     {
         root = rootDirectory;
-        Text = "Codexracker";
+        Text = "TokenTracker";
         Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
         ClientSize = new Size(580, 330); MinimumSize = new Size(596, 369);
         StartPosition = FormStartPosition.CenterScreen;
         Font = new Font("Microsoft JhengHei UI", 10);
         BackColor = Color.FromArgb(245, 247, 251);
-        var title = new Label { Text = "Codex Token 用量追蹤", Location = new Point(24, 22), AutoSize = true, Font = new Font(Font.FontFamily, 18, FontStyle.Bold) };
+        var title = new Label { Text = "TokenTracker · 讓每一點額度都有去處", Location = new Point(24, 22), AutoSize = true, Font = new Font(Font.FontFamily, 18, FontStyle.Bold) };
         var help = new Label { Text = "首次準備需複製完整 Codex，請預留約 3 GB 空間。\n請先退出原 Codex App；啟動器會保留既有用量與設定。", Location = new Point(24, 70), Size = new Size(530, 50) };
         status.Location = new Point(24, 134); status.Size = new Size(530, 62); status.Text = "正在準備…";
         progress.Location = new Point(24, 201); progress.Size = new Size(530, 8); progress.Style = ProgressBarStyle.Marquee;
@@ -282,7 +282,7 @@ internal static class Program
         bool created;
         using (var mutex = new Mutex(true, "Local\\CodexrackerLauncher", out created))
         {
-            if (!created) { MessageBox.Show("Codexracker 啟動器已開啟，請使用既有視窗。", "Codexracker"); return 0; }
+            if (!created) { MessageBox.Show("TokenTracker 啟動器已開啟，請使用既有視窗。", "TokenTracker"); return 0; }
             Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
             string root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Codexracker");
             Application.Run(new LauncherWindow(root, false));

@@ -12,7 +12,7 @@ const report = {
   testedAt: new Date().toISOString(),
   result: 'failed',
   realModelRequestsSent: false,
-  method: 'real-Owl-renderer-synthetic-stream-quota-and-lavender-token-overlay',
+  method: 'real-Owl-renderer-synthetic-stream-quota-and-tokentracker-missions',
   checks: [],
 }
 const run = path.join(experimentRoot, `realtime-${randomUUID()}`)
@@ -29,7 +29,7 @@ try {
     const {ipcMain}=require('electron')
     const original=ipcMain.handle.bind(ipcMain)
     let used=3
-    const quotas=()=>({rateLimits:{limitId:'codex',primary:{usedPercent:10,windowDurationMins:300},secondary:{usedPercent:used,windowDurationMins:10080,resetsAt:1792627200}}})
+    const quotas=()=>({rateLimits:{limitId:'codex',primary:{usedPercent:10,windowDurationMins:300},secondary:{usedPercent:used,windowDurationMins:10080,resetsAt:${Math.floor(Date.now() / 1000) + 7 * 86400}}}})
     const notify=(sender,method,params)=>sender.send('codex_desktop:message-for-view',{type:'mcp-notification',hostId:'local',method,params})
     const reply=(sender,id,result)=>sender.send('codex_desktop:message-for-view',{type:'mcp-response',hostId:'local',message:{id,result}})
     const usage=(sender,input,output,cached)=>notify(sender,'thread/tokenUsage/updated',{threadId:'fixture-thread',turnId:'fixture-turn',tokenUsage:{total:{inputTokens:input,outputTokens:output,cachedInputTokens:cached,totalTokens:input+output},last:{inputTokens:100,outputTokens:20,cachedInputTokens:80}},prompt:'PRIVATE_SENTINEL'})
@@ -81,6 +81,9 @@ try {
       const hud = page.locator('codex-token-cache-hud')
       step = 'quota-read'
       await expect(hud.getByTestId('weekly-remaining')).toHaveText('97%')
+      await expect(hud.getByTestId('daily-target')).toHaveText('13.86%／天')
+      await expect(hud.getByTestId('total-tokens')).toHaveText('0')
+      expect(await hud.locator('.hud').evaluate((el) => getComputedStyle(el).fontSize)).toBe('15px')
       step = 'accepted-model'
       await page.evaluate(() => window.codexrackerRealtimeTest.begin())
       await expect(hud.getByTestId('live-model')).toHaveText('gpt-6.1-sol')
@@ -97,6 +100,8 @@ try {
       await expect(hud.getByTestId('stream-progress')).toContainText('12 字')
       await hud.getByRole('button', { name: '更新週額度' }).click()
       await expect(hud.getByTestId('weekly-remaining')).toHaveText('95%')
+      await expect(hud.getByTestId('daily-target')).toHaveText('13.86%／天')
+      await expect(hud.getByTestId('daily-used')).toHaveText('2%')
       report.checks.push('official-shape-weekly-window-and-read-only-refresh')
       await page.evaluate(() => window.codexrackerRealtimeTest.finish())
       step = 'finish-and-token-only-overlay'
@@ -104,12 +109,16 @@ try {
       await expect(hud.getByTestId('measured-output')).toContainText('20')
       await expect(hud.getByTestId('total-input')).toHaveText('100')
       await expect(hud.getByTestId('total-output')).toHaveText('20')
+      await expect(hud.getByTestId('total-tokens')).toHaveText('120')
+      await expect(hud.getByTestId('today-tokens')).toHaveText('120')
       await expect(hud.getByTestId('total-cost')).toHaveCount(0)
-      await expect(hud.locator('section')).not.toContainText(/USD|NT\$|匯率|費率|價格/)
-      expect(await hud.locator('section').evaluate((el) => getComputedStyle(el).borderRadius)).toBe(
+      await expect(hud.locator('.hud')).not.toContainText(/USD|NT\$|匯率|費率|價格/)
+      expect(await hud.locator('.hud').evaluate((el) => getComputedStyle(el).borderRadius)).toBe(
         '28px',
       )
-      report.checks.push('accepted-model-final-tokens-and-token-only-lavender-overlay')
+      report.checks.push(
+        'accepted-model-total-and-today-tokens-stable-daily-target-and-readable-type',
+      )
       await hud.getByRole('button', { name: '管理設定' }).click()
       await expect(hud.getByRole('combobox')).toHaveCount(0)
       await hud.getByRole('spinbutton', { name: '面板不透明度' }).fill('0.97')
@@ -130,12 +139,23 @@ try {
       await expect(hud.locator('article')).toHaveCount(1)
       await hud.getByRole('button', { name: '本機紀錄' }).click()
       await hud
-        .locator('section')
-        .screenshot({ path: path.join(workspaceRoot, 'lavender-hud.png') })
+        .locator('.hud')
+        .screenshot({ path: path.join(workspaceRoot, 'tokentracker-hud.png') })
       await hud.getByRole('button', { name: '最小化' }).click()
       await expect(hud.getByRole('button', { name: '展開用量追蹤' })).toBeVisible()
       const minimized = await page.evaluate(() => window.codexracker.snapshot())
-      expect([0, await page.evaluate(() => innerWidth - 44)]).toContain(
+      await expect(hud.getByTestId('bubble-remaining')).toHaveText('95%')
+      expect(
+        await hud.locator('.jelly').evaluate((el) => getComputedStyle(el).animationName),
+      ).toContain('jelly-breathe')
+      await hud
+        .locator('.hud')
+        .screenshot({ path: path.join(workspaceRoot, 'tokentracker-bubble.png') })
+      await page.emulateMedia({ reducedMotion: 'reduce' })
+      expect(await hud.locator('.jelly').evaluate((el) => getComputedStyle(el).animationName)).toBe(
+        'none',
+      )
+      expect([0, await page.evaluate(() => innerWidth - 88)]).toContain(
         minimized.settings.position.x,
       )
       report.checks.push('display-settings-drag-history-and-minimize-edge-snap')
@@ -151,9 +171,35 @@ try {
       await expect(hud.getByRole('button', { name: '展開用量追蹤' })).toBeVisible()
       await hud.getByRole('button', { name: '展開用量追蹤' }).click()
       await expect(hud.getByTestId('total-input')).toHaveText('100')
+      await expect(hud.getByTestId('total-tokens')).toHaveText('120')
+      await expect(hud.getByTestId('today-tokens')).toHaveText('120')
+      await expect(hud.getByTestId('daily-target')).toHaveText('13.86%／天')
       expect((await page.evaluate(() => window.codexracker.snapshot())).settings.opacity).toBe(0.97)
       await expect(hud.getByTestId('run-status')).toHaveText('待機')
       await expect(hud.getByTestId('updates')).toHaveText('1')
+      await page.setViewportSize({ width: 360, height: 640 })
+      await expect
+        .poll(async () =>
+          hud.locator('.hud').evaluate((el) => {
+            const rect = el.getBoundingClientRect()
+            return (
+              rect.left >= 0 &&
+              rect.top >= 0 &&
+              rect.right <= innerWidth &&
+              rect.bottom <= innerHeight &&
+              el.scrollWidth === el.clientWidth
+            )
+          }),
+        )
+        .toBe(true)
+      await hud.getByRole('button', { name: '最小化' }).click()
+      await hud.getByRole('button', { name: '展開用量追蹤' }).click()
+      await expect
+        .poll(async () =>
+          hud.locator('.hud').evaluate((el) => el.getBoundingClientRect().bottom <= innerHeight),
+        )
+        .toBe(true)
+      report.checks.push('narrow-viewport-and-restored-panel-stay-within-window')
     },
   )
   const stored = await readFile(path.join(profile, 'codexracker/metrics.json'), 'utf8')
@@ -168,9 +214,7 @@ try {
     promptCacheHitTokens: 80,
   })
   expect(stored).not.toMatch(/alpha|outputCharacters|weekly|fixture-thread/)
-  report.checks.push(
-    'restart-preserves-model-display-settings-metrics-without-stream-content-or-quota-persistence',
-  )
+  report.checks.push('restart-preserves-tokens-and-daily-mission-baseline-without-stream-content')
   report.result = 'passed'
 } catch (error) {
   console.error(error.message)
@@ -182,7 +226,7 @@ try {
       const restoration = await verifyRestoration()
       report.restoration = restoration.result
       await writeFile(
-        path.join(workspaceRoot, 'lavender-restoration.json'),
+        path.join(workspaceRoot, 'tokentracker-restoration.json'),
         JSON.stringify(restoration, null, 2) + '\n',
       )
       if (restoration.result !== 'passed') report.result = 'failed'
@@ -193,7 +237,7 @@ try {
     }
   }
   await writeFile(
-    path.join(workspaceRoot, 'lavender-desktop-evidence.json'),
+    path.join(workspaceRoot, 'tokentracker-desktop-evidence.json'),
     JSON.stringify(report, null, 2) + '\n',
   )
 }

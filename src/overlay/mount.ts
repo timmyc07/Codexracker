@@ -2,6 +2,8 @@ import { mount } from 'svelte'
 
 import Hud from './components/Hud.svelte'
 import { dashboardStore, liveStore, storageError } from './store'
+import { get } from 'svelte/store'
+import { localDay } from './summary'
 
 export function mountOverlay(target: HTMLElement = document.body): ShadowRoot {
   const existing = target.querySelector('codex-token-cache-hud')?.shadowRoot
@@ -20,7 +22,6 @@ export function mountOverlay(target: HTMLElement = document.body): ShadowRoot {
       storageError.set('')
     } else storageError.set('用量未能寫入本機。請檢查檔案權限與磁碟空間。')
   })
-  const before = revision
   let liveRevision = 0
   const unsubscribeLive = window.codexracker.subscribeLive((snapshot) => {
     liveRevision++
@@ -33,12 +34,20 @@ export function mountOverlay(target: HTMLElement = document.body): ShadowRoot {
     },
     () => {},
   )
-  void window.codexracker.snapshot().then(
-    (snapshot) => {
-      if (before === revision) dashboardStore.set(snapshot)
-    },
-    () => storageError.set('本機紀錄讀取失敗。請確認檔案完整並重新啟動。'),
-  )
+  const refreshDashboard = () => {
+    const before = revision
+    return window.codexracker.snapshot().then(
+      (snapshot) => {
+        if (before === revision) dashboardStore.set(snapshot)
+      },
+      () => storageError.set('本機紀錄讀取失敗。請確認檔案完整並重新啟動。'),
+    )
+  }
+  void refreshDashboard()
+  const midnight = setInterval(() => {
+    if (get(dashboardStore).todayDate !== localDay(new Date())) void refreshDashboard()
+  }, 60000)
+  window.addEventListener('pagehide', () => clearInterval(midnight), { once: true })
   window.addEventListener('pagehide', unsubscribe, { once: true })
   window.addEventListener('pagehide', unsubscribeLive, { once: true })
   return shadowRoot

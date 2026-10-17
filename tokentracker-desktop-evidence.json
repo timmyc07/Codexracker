@@ -1,0 +1,15 @@
+{
+  "testedAt": "2026-10-17T15:00:49.462Z",
+  "result": "passed",
+  "realModelRequestsSent": false,
+  "method": "real-Owl-renderer-synthetic-stream-quota-and-tokentracker-missions",
+  "checks": [
+    "stream-progress-visible-before-token-usage-or-disk-write",
+    "official-shape-weekly-window-and-read-only-refresh",
+    "accepted-model-total-and-today-tokens-stable-daily-target-and-readable-type",
+    "display-settings-drag-history-and-minimize-edge-snap",
+    "narrow-viewport-and-restored-panel-stay-within-window",
+    "restart-preserves-tokens-and-daily-mission-baseline-without-stream-content"
+  ],
+  "restoration": "passed"
+}

@@ -16,6 +16,34 @@ export interface Settings {
 export interface MetricsData {
   records: MetricRecord[]
   settings: Settings
+  quotaBaseline?: QuotaBaseline
+}
+export interface QuotaBaseline {
+  recordedAt: string
+  resetsAt: number
+  remainingPercent: number
+}
+
+export function sanitizeQuotaBaseline(value: unknown): QuotaBaseline | undefined {
+  if (value === undefined) return
+  const baseline = objectFrom(value)
+  if (
+    typeof baseline.recordedAt !== 'string' ||
+    !Number.isFinite(Date.parse(baseline.recordedAt)) ||
+    typeof baseline.resetsAt !== 'number' ||
+    !Number.isSafeInteger(baseline.resetsAt) ||
+    baseline.resetsAt * 1000 <= Date.parse(baseline.recordedAt) ||
+    typeof baseline.remainingPercent !== 'number' ||
+    !Number.isFinite(baseline.remainingPercent) ||
+    baseline.remainingPercent < 0 ||
+    baseline.remainingPercent > 100
+  )
+    throw new Error('invalid-quota-baseline')
+  return {
+    recordedAt: new Date(baseline.recordedAt).toISOString(),
+    resetsAt: baseline.resetsAt,
+    remainingPercent: baseline.remainingPercent,
+  }
 }
 export const defaultSettings = (): Settings => ({
   position: { x: 16, y: 16 },

@@ -2,9 +2,10 @@ import { Low } from 'lowdb'
 import { JSONFile } from 'lowdb/node'
 import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
-import { defaultSettings, sanitizeRecord, sanitizeSettings } from './schema'
+import { defaultSettings, sanitizeQuotaBaseline, sanitizeRecord, sanitizeSettings } from './schema'
 import type { MetricRecord, MetricsData } from './schema'
-import { dashboard } from '../overlay/summary'
+import { dashboard, localDay } from '../overlay/summary'
+import type { LimitWindow } from '../interceptor/live'
 
 export type { MetricRecord } from './schema'
 
@@ -24,7 +25,11 @@ export class MetricsRepository {
       if (!Array.isArray(db.data.records)) throw new Error('invalid-records')
       const records = db.data.records.map(sanitizeRecord)
       if (records.some((record) => !record)) throw new Error('invalid-record')
-      db.data = { records: records as MetricRecord[], settings: sanitizeSettings(db.data.settings) }
+      db.data = {
+        records: records as MetricRecord[],
+        settings: sanitizeSettings(db.data.settings),
+        quotaBaseline: sanitizeQuotaBaseline(db.data.quotaBaseline),
+      }
       return operation(db)
     })
     this.queue = result.catch(() => {})
@@ -32,7 +37,35 @@ export class MetricsRepository {
   }
 
   snapshot() {
-    return this.run(async (db) => dashboard(db.data.records, db.data.settings))
+    return this.run(async (db) =>
+      dashboard(db.data.records, db.data.settings, db.data.quotaBaseline),
+    )
+  }
+
+  trackQuota(weekly: LimitWindow | null, now = new Date()) {
+    return this.run(async (db) => {
+      const previous = db.data.quotaBaseline
+      if (!weekly) {
+        if (previous) {
+          delete db.data.quotaBaseline
+          await db.write()
+        }
+      } else if (
+        weekly.resetsAt &&
+        weekly.resetsAt * 1000 > now.getTime() &&
+        (!previous ||
+          previous.resetsAt !== weekly.resetsAt ||
+          localDay(new Date(previous.recordedAt)) !== localDay(now))
+      ) {
+        db.data.quotaBaseline = sanitizeQuotaBaseline({
+          recordedAt: now.toISOString(),
+          resetsAt: weekly.resetsAt,
+          remainingPercent: weekly.remainingPercent,
+        })
+        await db.write()
+      }
+      return dashboard(db.data.records, db.data.settings, db.data.quotaBaseline, now)
+    })
   }
 
   append(value: unknown) {
@@ -42,7 +75,7 @@ export class MetricsRepository {
         db.data.records.push(record)
         await db.write()
       }
-      return dashboard(db.data.records, db.data.settings)
+      return dashboard(db.data.records, db.data.settings, db.data.quotaBaseline)
     })
   }
 
@@ -51,7 +84,7 @@ export class MetricsRepository {
     return this.run(async (db) => {
       db.data.settings = settings
       await db.write()
-      return dashboard(db.data.records, db.data.settings)
+      return dashboard(db.data.records, db.data.settings, db.data.quotaBaseline)
     })
   }
 }

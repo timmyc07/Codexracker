@@ -8,26 +8,33 @@ if ((Get-Item -LiteralPath $installRoot).Attributes -band [IO.FileAttributes]::R
 $sourceHash = (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash
 # Immutable executables allow installing an update while an older launcher is open.
 # The desktop shortcut chooses the new version; shared user data is never moved.
-$installed = Join-Path $installRoot ("Codexracker." + $sourceHash.Substring(0, 16).ToLowerInvariant() + '.exe')
+$installed = Join-Path $installRoot ("TokenTracker." + $sourceHash.Substring(0, 16).ToLowerInvariant() + '.exe')
 if (Test-Path -LiteralPath $installed) {
     if ((Get-FileHash -LiteralPath $installed -Algorithm SHA256).Hash -ne $sourceHash) { throw 'Unknown modification of installed executable' }
 } else {
-    $staged = Join-Path $installRoot ("Codexracker." + [guid]::NewGuid().ToString('N') + '.exe')
+    $staged = Join-Path $installRoot ("TokenTracker." + [guid]::NewGuid().ToString('N') + '.exe')
     Copy-Item -LiteralPath $target -Destination $staged
     if ((Get-FileHash -LiteralPath $staged -Algorithm SHA256).Hash -ne $sourceHash) { throw 'Installed executable fingerprint mismatch' }
     Move-Item -LiteralPath $staged -Destination $installed -Force
 }
 $target = $installed
 $desktop = [Environment]::GetFolderPath('DesktopDirectory')
-$shortcutPath = Join-Path $desktop 'Codexracker.lnk'
+$shortcutPath = Join-Path $desktop 'TokenTracker.lnk'
 if (Test-Path -LiteralPath $shortcutPath) {
     $existing = (New-Object -ComObject WScript.Shell).CreateShortcut($shortcutPath)
-    if (-not $existing.Description.StartsWith('Codexracker')) { throw 'Refusing to replace an unrelated shortcut' }
+    if (-not $existing.Description.StartsWith('TokenTracker')) { throw 'Refusing to replace an unrelated shortcut' }
 }
 $shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut($shortcutPath)
 $shortcut.TargetPath = $target
 $shortcut.WorkingDirectory = [IO.Path]::GetDirectoryName($target)
-$shortcut.Description = 'Codexracker - Codex Token usage tracker'
+$shortcut.Description = 'TokenTracker - Codex Token usage tracker'
 $shortcut.IconLocation = "$target,0"
 $shortcut.Save()
+$previousShortcut = Join-Path $desktop 'Codexracker.lnk'
+if (Test-Path -LiteralPath $previousShortcut) {
+    $previous = (New-Object -ComObject WScript.Shell).CreateShortcut($previousShortcut)
+    if ($previous.Description.StartsWith('Codexracker') -and ([IO.Path]::GetDirectoryName($previous.TargetPath) -eq $installRoot)) {
+        Remove-Item -LiteralPath $previousShortcut
+    }
+}
 [pscustomobject]@{ shortcut = $shortcutPath; target = $shortcut.TargetPath; sha256 = $sourceHash } | ConvertTo-Json -Compress
