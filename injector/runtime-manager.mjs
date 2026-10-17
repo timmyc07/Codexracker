@@ -7,7 +7,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { copyRuntime, workspaceRoot } from './copy-runtime.mjs'
 import { snapshotSource, assessUpdate } from './inspect-update.mjs'
 import { patchIdentity, patchRuntime, runtimeHashes, verifyRuntime } from './runtime-patch.mjs'
-import { desktopSession } from './desktop-session.mjs'
+import { verifyDesktopStartup } from './desktop-startup.mjs'
 
 export const managedRoot = path.join(workspaceRoot, '.local-runtime', 'desktop')
 const pointerPath = (root) => path.join(root, 'active.json')
@@ -88,17 +88,7 @@ const production = {
     if (!same(await runtimeHashes(app), source.hashes))
       throw new Error('Copied source fingerprint mismatch')
   },
-  smoke: (app, root) =>
-    desktopSession(
-      app,
-      path.join(root, 'smoke', randomUUID()),
-      path.join(root, 'smoke-home'),
-      async (page) => {
-        const snapshot = await page.evaluate(() => window.codexracker.snapshot())
-        if (!snapshot?.settings || snapshot.total.usageUpdateCount !== 0)
-          throw new Error('Renderer injection validation failed')
-      },
-    ),
+  smoke: verifyDesktopStartup,
 }
 
 function running(processes) {

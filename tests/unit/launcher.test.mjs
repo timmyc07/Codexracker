@@ -58,5 +58,9 @@ it('errors expose only a useful category without leaking exception payloads', ()
   expect(errorMessage({ code: 'EEXIST', message: 'PRIVATE_CONTENT' })).toContain('鎖')
   expect(errorMessage({ code: 'EPERM', message: 'PRIVATE_CONTENT' })).toContain('存取')
   expect(errorMessage({ code: 'ENOSPC', message: 'PRIVATE_CONTENT' })).toContain('空間')
+  expect(errorMessage({ code: 'UNKNOWN', message: 'PRIVATE_CONTENT' })).toContain('程式碼完整性')
+  expect(errorMessage({ code: 'UNKNOWN', message: 'PRIVATE_CONTENT' })).not.toContain(
+    'PRIVATE_CONTENT',
+  )
   expect(errorMessage(new Error('PRIVATE_CONTENT'))).not.toContain('PRIVATE_CONTENT')
 })

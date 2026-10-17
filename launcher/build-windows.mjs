@@ -31,7 +31,7 @@ for (const file of [
   'inspect-update.mjs',
   'inspect-installation.mjs',
   'owl-integrity.mjs',
-  'desktop-session.mjs',
+  'desktop-startup.mjs',
   'registered-package.ps1',
   'runtime-processes.ps1',
 ])
@@ -83,8 +83,7 @@ async function includePackage(name, requireFrom) {
     await includePackage(dependency, requirePackage)
 }
 const requireProject = createRequire(path.join(workspaceRoot, 'package.json'))
-for (const name of ['@electron/asar', '@electron/fuses', 'playwright'])
-  await includePackage(name, requireProject)
+for (const name of ['@electron/asar', '@electron/fuses']) await includePackage(name, requireProject)
 
 const files = []
 async function inventory(relative = '') {

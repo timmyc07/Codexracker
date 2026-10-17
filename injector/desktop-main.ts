@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { writeFile } from 'node:fs/promises'
 import { channels } from '../src/bridge'
 import { metricsRepository } from '../src/storage/metrics-db'
 import { hasMetrics, objectFrom, sanitizeMetrics, tokenNumber } from '../src/interceptor/usage'
@@ -20,6 +21,7 @@ interface IpcEvent {
 interface Desktop {
   app: {
     getPath(name: string): string
+    exit(code: number): void
     on(event: string, listener: (event: unknown, contents: Contents) => void): void
   }
   ipcMain: {
@@ -29,6 +31,14 @@ interface Desktop {
 }
 
 export function installDesktopMain({ app, ipcMain }: Desktop, rendererCode: string) {
+  const validationProfile = process.env.TOKENTRACKER_STARTUP_PROFILE
+  if (
+    validationProfile &&
+    path.resolve(validationProfile).toLowerCase() !==
+      path.resolve(app.getPath('userData')).toLowerCase()
+  )
+    throw new Error('tracker-startup-profile-mismatch')
+  let validated = false
   const repository = metricsRepository(
     path.join(app.getPath('userData'), 'codexracker', 'metrics.json'),
   )
@@ -148,7 +158,27 @@ export function installDesktopMain({ app, ipcMain }: Desktop, rendererCode: stri
         .executeJavaScript(
           `if(location.protocol==='app:' && window.codexracker){${rendererCode}\n}`,
         )
-        .catch(() => {})
+        .then(async () => {
+          if (!validationProfile || validated) return
+          const proof = await contents.executeJavaScript(`(async () => {
+            if (location.protocol !== 'app:' || !window.codexracker) return null
+            const snapshot = await window.codexracker.snapshot()
+            const mounted = document.querySelector('codex-token-cache-hud')?.shadowRoot?.querySelector('.hud')
+            return {result: mounted && snapshot.settings && snapshot.total.usageUpdateCount === 0 ? 'passed' : 'failed'}
+          })()`)
+          if (!proof || validated) return
+          validated = true
+          const passed = objectFrom(proof).result === 'passed'
+          await writeFile(
+            path.join(validationProfile, 'startup-proof.json'),
+            JSON.stringify({ result: passed ? 'passed' : 'failed' }),
+            { flag: 'wx' },
+          )
+          app.exit(passed ? 0 : 1)
+        })
+        .catch(() => {
+          if (validationProfile) app.exit(1)
+        })
     })
   })
   return repository

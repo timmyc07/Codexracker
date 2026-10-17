@@ -15,8 +15,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("TokenTracker")]
 [assembly: AssemblyProduct("TokenTracker")]
 [assembly: AssemblyDescription("Codex desktop token usage tracker")]
-[assembly: AssemblyVersion("0.4.0.0")]
-[assembly: AssemblyFileVersion("0.4.0.0")]
+[assembly: AssemblyVersion("0.4.1.0")]
+[assembly: AssemblyFileVersion("0.4.1.0")]
 
 public sealed class PayloadFile
 {

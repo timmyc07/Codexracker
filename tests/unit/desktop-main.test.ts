@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { installDesktopMain } from '../../injector/desktop-main'
@@ -7,7 +7,43 @@ import { channels } from '../../src/bridge'
 
 let directory = ''
 afterEach(async () => {
+  vi.unstubAllEnvs()
   if (directory) await rm(directory, { recursive: true, force: true })
+})
+
+it.each(['passed', 'failed'])(
+  'writes a bounded startup proof for %s renderer validation and exits',
+  async (result) => {
+    directory = await mkdtemp(path.join(os.tmpdir(), 'tokentracker-startup-main-'))
+    vi.stubEnv('TOKENTRACKER_STARTUP_PROFILE', directory)
+    const app = { getPath: () => directory, on: vi.fn(), exit: vi.fn() }
+    installDesktopMain({ app, ipcMain: { on: vi.fn(), handle: vi.fn() } }, '/* renderer */')
+    const contents = {
+      on: vi.fn(),
+      executeJavaScript: vi
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce({ result, prompt: 'PRIVATE' }),
+    }
+    app.on.mock.calls[0][1](undefined, contents)
+    contents.on.mock.calls[0][1]()
+    await vi.waitFor(() => expect(app.exit).toHaveBeenCalledWith(result === 'passed' ? 0 : 1))
+    expect(JSON.parse(await readFile(path.join(directory, 'startup-proof.json'), 'utf8'))).toEqual({
+      result,
+    })
+  },
+)
+
+it('rejects startup validation in a shared profile before installing handlers', () => {
+  vi.stubEnv('TOKENTRACKER_STARTUP_PROFILE', 'C:/isolated')
+  const ipcMain = { on: vi.fn(), handle: vi.fn() }
+  expect(() =>
+    installDesktopMain(
+      { app: { getPath: () => 'C:/shared', on: vi.fn(), exit: vi.fn() }, ipcMain },
+      '',
+    ),
+  ).toThrow('profile-mismatch')
+  expect(ipcMain.handle).not.toHaveBeenCalled()
 })
 
 it('rejects page/subframe writes and deduplicates overlapping notifications across renderer windows', async () => {
@@ -22,7 +58,7 @@ it('rejects page/subframe writes and deduplicates overlapping notifications acro
   const handlers = new Map<string, (event: Event, value: unknown) => unknown>()
   const repository = installDesktopMain(
     {
-      app: { getPath: () => directory, on: vi.fn() },
+      app: { getPath: () => directory, on: vi.fn(), exit: vi.fn() },
       ipcMain: {
         on: (channel, listener) => {
           listeners.set(channel, listener)

@@ -1,0 +1,45 @@
+{
+  "testedAt": "2026-10-17 15:15:17 UTC",
+  "result": "blocked-by-windows-code-integrity",
+  "changes": {
+    "productionTcpDebugServerRemoved": true,
+    "productionPlaywrightRemoved": true,
+    "startupValidationUsesIsolatedProfileAndProofFile": true,
+    "firewallSettingsChanged": false,
+    "installedVersionReplaced": false
+  },
+  "checks": {
+    "unitTests": 68,
+    "inspectionTests": 21,
+    "typecheck": "passed",
+    "lint": "passed",
+    "build": "passed",
+    "packageSmoke": "passed"
+  },
+  "runtimeValidation": {
+    "result": "blocked",
+    "spawnErrorCode": "UNKNOWN",
+    "codeIntegrityEventIds": [3033, 3077],
+    "policyId": "0283ac0f-fff1-49ae-ada1-8a933130cad6",
+    "signatureStatus": "HashMismatch",
+    "explanation": "Windows refused the modified Codex executable under the active signing policy. The new runtime was not activated.",
+    "networkListenerSampling": "not-completed-because-process-could-not-start",
+    "realModelRequestsSent": false
+  },
+  "staticAnalysis": {
+    "tool": "REA",
+    "evidenceId": "ev_8ea2f8ee35de40ba0868cfda1f6f87922a3bb78fcf5ce9f6d8d4df17fc430268",
+    "authority": "shipped-artifact",
+    "sourcePaths": ["package.json", ".vite/build/application-network-startup-DB1VeU3v.js"],
+    "coverage": "partial",
+    "limitation": "Other Codex networking paths were not established. Several unpacked native artifacts differ from ASAR integrity metadata; no conclusions about their runtime behavior were drawn."
+  },
+  "remaining": [
+    "Use publisher signing accepted by the active policy, or replace the modified-executable architecture.",
+    "A new end-to-end runtime and listener check is required before installing this build."
+  ],
+  "references": [
+    "https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/rules",
+    "https://learn.microsoft.com/en-us/windows/security/application-security/application-control/app-control-for-business/operations/appcontrol-debugging-and-troubleshooting"
+  ]
+}

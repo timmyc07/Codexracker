@@ -16,6 +16,8 @@ export const statusMessages = {
 }
 
 export function errorMessage(error) {
+  if (error.code === 'UNKNOWN')
+    return 'Windows 拒絕啟動 Codex 副本。請檢查 Windows 安全性與程式碼完整性事件；若簽章原則阻擋修改過的 EXE，需受信任的程式碼簽章或改用不修改 EXE 的架構。既有資料已保留，開放防火牆無法修復簽章問題。'
   if (error.code === 'EEXIST')
     return '另一個管理程序正在執行，或上次意外結束留下鎖。請先確認其他啟動器已關閉；鎖檔不會被自動移除。'
   if (['EACCES', 'EPERM'].includes(error.code))

@@ -2,6 +2,8 @@
 
 Windows Codex 桌面版的 Token 與快取用量追蹤工具。0.4 以 TT 雙字母標誌、淡紫水光浮球及更大的文字呈現累計／今日 Token、本週剩餘額度與每日任務。浮球有呼吸、水波及按壓回彈動畫，系統開啟減少動態效果時會停用動畫。
 
+0.4.1 將正式版的更新／回復驗證改為本機驗證檔，不啟動 TCP 除錯伺服器，封裝也不再包含 Playwright。實機測試另發現目前 Windows 程式碼完整性原則會拒絕修改過的 Codex EXE（事件 3033／3077、原簽章雜湊不符）；此限制尚未解決，新副本未通過啟動驗收。詳見 [驗證紀錄](firewall-validation.json)。
+
 ## 桌面使用
 
 雙擊桌面的 **TokenTracker** 捷徑。更新後請完整退出目前 Codex 與舊啟動器，再重新雙擊捷徑；新版補丁會在重新啟動後載入，既有用量紀錄與位置設定保留。安裝器會替換本工具建立的舊 Codexracker 捷徑。
@@ -9,6 +11,12 @@ Windows Codex 桌面版的 Token 與快取用量追蹤工具。0.4 以 TT 雙字
 啟動器內含 Node 及所需模組，不需安裝 Node、pnpm 或保留專案目錄；電腦仍需安裝官方 Windows Codex App。程式位於 `%LOCALAPPDATA%/Codexracker/`，桌面捷徑指向帶建置指紋的版本化 EXE。首次準備副本約需 3 GB 空間。原 App 或副本仍執行時會提示先退出，不會強制關閉你的 App。
 
 啟動器提供「啟動 Codex」、「檢查更新」、「回復上一版」與「開啟資料夾」。更新只重建可寫副本，不修改 WindowsApps 中的官方安裝。用量與設定固定保存在 `%LOCALAPPDATA%/Codexracker/data`，EXE 更新不會清除資料。程式快取解壓在旁邊的 `program` 目錄。
+
+### 防火牆與簽章
+
+「Windows Defender 防火牆已封鎖此應用程式的某些功能」是入站網路提示，與病毒偵測、SmartScreen、程式碼簽章原則不同。每個版本使用不同副本路徑，因此可能再次提示；正式版現在只用 Electron 內部呼叫與本機檔案完成面板啟動驗證，不另開除錯連接埠。工具不會新增防火牆規則、停用通知或放寬安全性設定。官方 Codex 自己的網路功能仍受 Windows 原則管理。參考 [Microsoft 防火牆規則說明](https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/rules)。
+
+修改副本的 ASAR 完整性資源會使其 EXE 原數位簽章失效。在要求有效簽章的裝置上，必須使用受信任的發行者簽章或改成不修改官方 EXE 的架構；開放入站權限不能修復簽章。啟動驗證失敗時不啟用新版本，原用量檔與可用版本保留。開發用 `test:realtime-desktop` 仍使用 loopback CDP，並未隨正式版封裝。
 
 ## 面板內容
 
@@ -38,7 +46,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File launcher/install-shortcu
 
 `test:realtime-desktop` 在隔離的實際 Codex Renderer 中注入合成串流與額度，測試模型、累計／今日 Token、固定每日目標、週額度刷新、顯示設定、拖曳、紀錄、浮球動畫、減少動態效果與重啟保存，不發送模型請求。完成後還原實驗副本並逐檔核對官方來源。結果見 [面板驗收](tokentracker-desktop-evidence.json)、[實際截圖](tokentracker-hud.png)、[浮球](tokentracker-bubble.png) 與 [還原核對](tokentracker-restoration.json)。
 
-建置以 Windows 內建 .NET Framework C# 編譯器生成 WinForms EXE，內嵌精選 runtime 模組、桌面產物、Node 與授權文件，輸出至 `release/<時間>/TokenTracker.exe`，附帶 TT 圖示；最新位置及 SHA256 見 `release/latest.json`。自解壓核對封裝及逐檔 SHA256。未包含官方商店 runtime 的再散布。Node 版本變更時需更新 `launcher/licenses/` 的授權文件。
+建置以 Windows 內建 .NET Framework C# 編譯器生成 WinForms EXE，內嵌精選 runtime 模組、桌面產物、Node 與授權文件，輸出至 `release/<時間>/TokenTracker.exe`，附帶 TT 圖示；最新位置及 SHA256 見 `release/latest.json`。自解壓核對封裝及逐檔 SHA256。正式版不包含 Playwright，也不需要瀏覽器除錯伺服器。未包含官方商店 runtime 的再散布。Node 版本變更時需更新 `launcher/licenses/` 的授權文件。
 
 ## 開發副本更新與回復
 
