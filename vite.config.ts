@@ -5,14 +5,15 @@ export default defineConfig({
   plugins: [svelte()],
   build: {
     lib: {
-      entry: 'src/overlay/mount.ts',
-      formats: ['es'],
+      entry: 'src/overlay/entry.ts',
+      name: 'CodexrackerOverlay',
+      formats: ['iife'],
       fileName: 'overlay',
     },
     emptyOutDir: true,
   },
   test: {
-    include: ['tests/unit/**/*.test.ts'],
+    include: ['tests/unit/**/*.test.{ts,mjs}'],
     environment: 'node',
   },
 })

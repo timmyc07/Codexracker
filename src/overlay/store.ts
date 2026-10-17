@@ -1,24 +1,21 @@
 import { writable } from 'svelte/store'
+import { dashboard } from './summary'
+import { defaultSettings } from '../storage/schema'
+import type { Settings } from '../storage/schema'
+import { emptyLive } from '../interceptor/live'
 
-import type { UsageMetrics } from '../interceptor/sse-parser'
+export const dashboardStore = writable(dashboard([], defaultSettings()))
+export const storageError = writable('')
+export const liveStore = writable(emptyLive())
 
-export interface OverlayState extends UsageMetrics {
-  requestCount: number
-  cacheHitCount: number
-}
-
-const initialState: OverlayState = {
-  requestCount: 0,
-  cacheHitCount: 0,
-}
-
-export const overlayStore = writable<OverlayState>(initialState)
-
-export function recordMetrics(metrics: UsageMetrics): void {
-  overlayStore.update((state) => ({
-    ...state,
-    ...metrics,
-    requestCount: state.requestCount + 1,
-    cacheHitCount: state.cacheHitCount + (metrics.promptCacheHitTokens ? 1 : 0),
-  }))
+export async function saveSettings(settings: Settings) {
+  try {
+    const snapshot = await window.codexracker.saveSettings(settings)
+    dashboardStore.set(snapshot)
+    storageError.set('')
+    return true
+  } catch {
+    storageError.set('設定未儲存。請檢查顯示設定與本機檔案權限後重試。')
+    return false
+  }
 }

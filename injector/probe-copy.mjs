@@ -3,19 +3,13 @@ import { constants } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { copyFile, mkdir, readFile, realpath, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { Readable } from 'node:stream'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import {
-  createPackage,
-  createPackageFromStreams,
-  extractFile,
-  getRawHeader,
-  uncache,
-} from '@electron/asar'
+import { createPackage, extractFile, uncache } from '@electron/asar'
 import { getCurrentFuseWire, FuseState, FuseV1Options } from '@electron/fuses'
 import { copyWhenUnlocked, experimentRoot, hashFile } from './copy-runtime.mjs'
 import { headerHash, replaceEmbeddedIntegrity } from './owl-integrity.mjs'
 import { mainProbe, preloadProbe } from './probe-payload.mjs'
+import { repackArchive } from './repack-archive.mjs'
 
 const app = path.join(experimentRoot, 'app')
 const archive = path.join(app, 'resources', 'app.asar')
@@ -83,8 +77,14 @@ export async function restoreCopy() {
   return { restored: true, originalHashes: state.originalHashes }
 }
 
-async function repackProbe(source, destination, nonce, playwright) {
-  const { header } = getRawHeader(source)
+async function repackProbe(
+  source,
+  destination,
+  nonce,
+  playwright,
+  preloadExtension,
+  mainExtension,
+) {
   const pkg = JSON.parse(extractFile(source, 'package.json').toString())
   const main = path.normalize(pkg.main)
   const preload = path.normalize('.vite/build/preload.js')
@@ -92,41 +92,13 @@ async function repackProbe(source, destination, nonce, playwright) {
   const preloadCode = extractFile(source, preload).toString()
   if (mainCode.includes(marker) || preloadCode.includes(marker)) throw new Error('Already injected')
   const replacements = new Map([
-    [main, Buffer.from(mainProbe(nonce, { playwright }) + mainCode)],
-    [preload, Buffer.from(preloadCode + preloadProbe(nonce, { playwright }))],
+    [main, Buffer.from(mainProbe(nonce, { playwright }) + mainExtension + mainCode)],
+    [preload, Buffer.from(preloadCode + preloadProbe(nonce, { playwright }) + preloadExtension)],
   ])
-  const streams = []
-  function visit(entries, parent = '') {
-    for (const [name, entry] of Object.entries(entries)) {
-      const file = path.join(parent, name)
-      if (entry.link) throw new Error('Unsupported ASAR links; no patch applied')
-      if (entry.files) {
-        streams.push({ path: file, type: 'directory', unpacked: !!entry.unpacked })
-        visit(entry.files, file)
-      } else {
-        streams.push({
-          path: file,
-          type: 'file',
-          unpacked: !!entry.unpacked,
-          stat: {
-            size: replacements.get(file)?.length ?? entry.size,
-            mode: entry.executable ? 0o100755 : 0o100644,
-          },
-          streamGenerator: () =>
-            Readable.from([replacements.get(file) ?? extractFile(source, file)]),
-        })
-      }
-    }
-  }
-  visit(header.files)
-  await createPackageFromStreams(destination, streams)
-  for (const [file, bytes] of replacements) {
-    if (!extractFile(destination, file).equals(bytes))
-      throw new Error(`Repacked probe mismatch: ${file}`)
-  }
+  await repackArchive(source, destination, replacements)
 }
 
-export async function prepareProbe(mode) {
+export async function prepareProbe(mode, preloadExtension = '', mainExtension = '') {
   if (!['harness', 'application', 'playwright'].includes(mode))
     throw new Error('Mode must be harness, application or playwright')
   const manifest = await assertCopy()
@@ -188,7 +160,14 @@ export async function prepareProbe(mode) {
     await writeFile(path.join(source, 'preload.cjs'), preloadProbe(state.nonce))
     await createPackage(source, staged)
   } else {
-    await repackProbe(archive, staged, state.nonce, mode === 'playwright')
+    await repackProbe(
+      archive,
+      staged,
+      state.nonce,
+      mode === 'playwright',
+      preloadExtension,
+      mainExtension,
+    )
   }
   const newHeaderHash = headerHash(staged)
   const patchedExe = replaceEmbeddedIntegrity(

@@ -1,7 +1,10 @@
-import { installFetchInterceptor } from '../src/interceptor/proxy'
-import { recordMetrics } from '../src/overlay/store'
+import { installIpcUsageInterceptor } from '../src/interceptor/proxy'
+import type { IpcUsageSource, MetricsObserver } from '../src/interceptor/proxy'
 
-/** Installs the renderer-side network hook from the injected preload bundle. */
-export function installPreloadHook(): () => void {
-  return installFetchInterceptor(recordMetrics)
+/** Observe the verified desktop IPC channel and forward only normalized deltas. */
+export function installPreloadHook(
+  ipcRenderer: IpcUsageSource,
+  observer: MetricsObserver,
+): () => void {
+  return installIpcUsageInterceptor(ipcRenderer, observer)
 }

@@ -29,13 +29,13 @@ export async function copyWhenUnlocked(source, destination) {
   }
 }
 
-export async function copyRuntime(sourceApp) {
+export async function copyRuntime(sourceApp, destination = path.join(experimentRoot, 'app')) {
   const source = path.resolve(sourceApp)
   if (!/[/\\]WindowsApps[/\\]OpenAI\.Codex_[^/\\]+[/\\]app$/i.test(source)) {
     throw new Error('Source must be the installed OpenAI.Codex WindowsApps app directory')
   }
-  const destination = path.join(experimentRoot, 'app')
-  await mkdir(experimentRoot, { recursive: true })
+  const parent = path.dirname(destination)
+  await mkdir(parent, { recursive: true })
   await mkdir(destination)
   const files = []
   async function visit(relative = '') {
@@ -74,13 +74,9 @@ export async function copyRuntime(sourceApp) {
   }
   await visit()
   const manifest = { source, destination, copiedAt: new Date().toISOString(), files }
-  await writeFile(
-    path.join(experimentRoot, 'copy-manifest.json'),
-    JSON.stringify(manifest, null, 2),
-    {
-      flag: 'wx',
-    },
-  )
+  await writeFile(path.join(parent, 'copy-manifest.json'), JSON.stringify(manifest, null, 2), {
+    flag: 'wx',
+  })
   return {
     destination,
     fileCount: files.length,

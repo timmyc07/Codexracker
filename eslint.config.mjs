@@ -8,6 +8,7 @@ export default [
   {
     ignores: [
       'dist/**',
+      'release/**',
       'node_modules/**',
       '.pnpm-store/**',
       '.local-runtime/**',

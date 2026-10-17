@@ -1,51 +1,88 @@
-export interface UsageMetrics {
-  inputTokens?: number
-  outputTokens?: number
-  promptCacheHitTokens?: number
-  promptCacheReadTokens?: number
-  durationMs?: number
-}
+import { createParser } from 'eventsource-parser'
+import { hasMetrics, objectFrom, sanitizeMetrics } from './usage'
+import type { UsageMetrics } from './usage'
 
-const numberFrom = (value: unknown): number | undefined =>
-  typeof value === 'number' && Number.isFinite(value) ? value : undefined
-
-const readMetrics = (value: unknown): UsageMetrics => {
-  if (!value || typeof value !== 'object') return {}
-
-  const record = value as Record<string, unknown>
-  const response = record.response as Record<string, unknown> | undefined
-  const usage = (record.usage ?? response?.usage) as Record<string, unknown> | undefined
-  const promptTokensDetails = usage?.prompt_tokens_details as Record<string, unknown> | undefined
-
-  return {
-    inputTokens: numberFrom(usage?.prompt_tokens),
-    outputTokens: numberFrom(usage?.completion_tokens),
-    promptCacheHitTokens: numberFrom(
-      usage?.prompt_cache_hit_tokens ?? promptTokensDetails?.cached_tokens,
-    ),
-    promptCacheReadTokens: numberFrom(usage?.prompt_cache_read_tokens),
-    durationMs: numberFrom(record.duration_ms),
-  }
-}
-
-export function parseSseEvent(data: string): UsageMetrics {
+/** Responses terminal usage and Chat Completions usage-only final chunks. */
+export function parseSseEvent(data: string): UsageMetrics | undefined {
   try {
-    return readMetrics(JSON.parse(data))
+    const event = objectFrom(JSON.parse(data))
+    let usage: Record<string, unknown>
+    let metrics: UsageMetrics
+    if (event.type === 'response.completed') {
+      usage = objectFrom(objectFrom(event.response).usage)
+      metrics = sanitizeMetrics({
+        inputTokens: usage.input_tokens,
+        outputTokens: usage.output_tokens,
+        promptCacheHitTokens: objectFrom(usage.input_tokens_details).cached_tokens,
+      })
+    } else if (
+      event.object === 'chat.completion.chunk' &&
+      Array.isArray(event.choices) &&
+      event.choices.length === 0
+    ) {
+      usage = objectFrom(event.usage)
+      metrics = sanitizeMetrics({
+        inputTokens: usage.prompt_tokens,
+        outputTokens: usage.completion_tokens,
+        promptCacheHitTokens: objectFrom(usage.prompt_tokens_details).cached_tokens,
+      })
+    } else return undefined
+    return hasMetrics(metrics) ? metrics : undefined
   } catch {
-    return {}
+    return undefined
   }
 }
 
-export function parseSseStream(chunk: string): UsageMetrics[] {
-  return chunk
-    .split(/\r?\n\r?\n/)
-    .map((event) =>
-      event
-        .split(/\r?\n/)
-        .filter((line) => line.startsWith('data:'))
-        .map((line) => line.slice(5).trim())
-        .join('\n'),
-    )
-    .filter(Boolean)
-    .map(parseSseEvent)
+export function createUsageSseParser(observer: (metrics: UsageMetrics) => void) {
+  let stopped = false
+  let ended = false
+  const parser = createParser({
+    maxBufferSize: 1024 * 1024,
+    onError(error) {
+      if (error.type === 'max-buffer-size-exceeded') stopped = true
+    },
+    onEvent(event) {
+      if (stopped) return
+      if (event.data.trim() === '[DONE]') {
+        stopped = true
+        return
+      }
+      const metrics = parseSseEvent(event.data)
+      if (metrics) {
+        stopped = true
+        observer(metrics)
+      }
+    },
+  })
+  return {
+    feed(chunk: string) {
+      if (!stopped && !ended) parser.feed(chunk)
+    },
+    end() {
+      // SSE requires a blank line: incomplete trailing events are discarded at EOF.
+      ended = true
+      parser.reset()
+    },
+  }
+}
+
+/** Decode incrementally so UTF-8 characters may also span byte chunks. */
+export async function consumeUsageSse(
+  stream: ReadableStream<Uint8Array>,
+  observer: (metrics: UsageMetrics) => void,
+): Promise<void> {
+  const parser = createUsageSseParser(observer)
+  const decoder = new TextDecoder()
+  const reader = stream.getReader()
+  try {
+    for (;;) {
+      const { value, done } = await reader.read()
+      if (done) break
+      parser.feed(decoder.decode(value, { stream: true }))
+    }
+    parser.feed(decoder.decode())
+  } finally {
+    parser.end()
+    reader.releaseLock()
+  }
 }

@@ -2,6 +2,7 @@ node_modules/
 .pnpm-store/
 .local-runtime/
 dist/
+release/
 coverage/
 test-results/
 playwright-report/
