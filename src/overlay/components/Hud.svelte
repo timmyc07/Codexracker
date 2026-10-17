@@ -2,7 +2,7 @@
   import { onMount, tick } from 'svelte'
   import { Spring } from 'svelte/motion'
   import { get } from 'svelte/store'
-  import { dashboardStore, liveStore, saveSettings, storageError } from '../store'
+  import { dashboardStore, liveStore, nowStore, saveSettings, storageError } from '../store'
   import type { Settings } from '../../storage/schema'
   import RuntimeStatus from './RuntimeStatus.svelte'
   import Logo from './Logo.svelte'
@@ -24,7 +24,7 @@
   let draft = $state<Settings>(structuredClone(initial))
   let saving = $state(false)
   let formError = $state('')
-  let now = $state(Date.now())
+  const now = $derived($nowStore)
   const settings = $derived($dashboardStore.settings)
   const latest = $derived($dashboardStore.latestSummary)
   const total = $derived($dashboardStore.total)
@@ -136,9 +136,6 @@
     else formError = '請輸入 0.3 至 1 之間的不透明度。'
   }
   onMount(() => {
-    const clock = setInterval(() => {
-      now = Date.now()
-    }, 60000)
     const resize = () => {
       if (pointerId === null) place(anchor.x, anchor.y)
     }
@@ -150,7 +147,6 @@
     const reduce = () => place(anchor.x, anchor.y, true)
     reducedMotion.addEventListener('change', reduce)
     return () => {
-      clearInterval(clock)
       size.disconnect()
       window.removeEventListener('resize', resize)
       reducedMotion.removeEventListener('change', reduce)
@@ -171,7 +167,7 @@
     <button
       class="restore"
       aria-label="展開用量追蹤"
-      title={`TokenTracker · 本週剩餘 ${remaining === undefined ? '待同步' : `${Math.round(remaining)}%`}`}
+      title={`TokenTracker · ${$liveStore.limitsStatus === 'unavailable' ? '上次同步的' : ''}本週剩餘 ${remaining === undefined ? '待同步' : `${Math.round(remaining)}%`}`}
       onpointerdown={pointerDown}
       onpointermove={pointerMove}
       onpointerup={pointerUp}
@@ -183,16 +179,8 @@
       <span class="bubble-visual"
         ><span class="jelly" class:low={remaining !== undefined && remaining <= 20}>
           <span class="liquid" style:height={`${remaining ?? 0}%`}></span>
-          <span class="bubble-logo"><Logo /></span>
           <strong data-testid="bubble-remaining"
             >{remaining === undefined ? '—' : `${Math.round(remaining)}%`}</strong
-          >
-          <span class="bubble-caption"
-            >{$liveStore.limitsStatus === 'unavailable'
-              ? '上次剩餘'
-              : remaining === undefined
-                ? '待同步'
-                : '本週剩餘'}</span
           >
         </span></span
       >
@@ -484,7 +472,7 @@
   .dragging .bubble-visual {
     transform: scale(1.03, 0.97);
   }
-  .dragging .jelly,
+  .dragging .jelly::before,
   .dragging .liquid {
     animation-play-state: paused;
   }
@@ -492,7 +480,6 @@
     position: relative;
     isolation: isolate;
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
     width: 78px;
@@ -500,7 +487,14 @@
     overflow: hidden;
     color: #503568;
     border: 1px solid #ffffffcf;
-    border-radius: 48% 52% 46% 54% / 47% 46% 54% 53%;
+    border-radius: 50%;
+  }
+  .jelly::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    border-radius: 50%;
     background:
       radial-gradient(ellipse at 26% 16%, #fff 0%, #f6ecffbd 24%, transparent 55%),
       linear-gradient(140deg, #e9d9ff, #d8b8f0 60%, #efc8e4);
@@ -508,7 +502,8 @@
       inset 2px 4px 7px #fff,
       inset -4px -6px 9px #a076c54a,
       0 6px 13px #8357a534;
-    animation: jelly-breathe 4s ease-in-out infinite;
+    animation: jelly-breathe 6s ease-in-out infinite;
+    will-change: transform;
   }
   .jelly::after {
     content: '';
@@ -532,40 +527,26 @@
     background: linear-gradient(#bd91e76b, #b889d787);
     border-radius: 42% 46% 0 0;
     transition: height 0.8s ease;
-    animation: water-sway 5s ease-in-out infinite alternate;
+    animation: water-sway 6s ease-in-out infinite alternate;
+    will-change: transform;
   }
   .jelly.low .liquid {
     background: linear-gradient(#e5a2c67a, #dca4c8a6);
   }
-  .bubble-logo {
-    width: 25px;
-    height: 25px;
-    margin-top: -1px;
-  }
   .jelly > strong {
-    font-size: 23px;
+    font-size: 27px;
     line-height: 1.1;
     font-weight: 800;
     letter-spacing: -0.7px;
     font-variant-numeric: tabular-nums;
   }
-  .bubble-caption {
-    font-size: 11px;
-    font-weight: 600;
-    line-height: 1.5;
-  }
   @keyframes jelly-breathe {
     0%,
     100% {
       transform: scale(1, 1);
-      border-radius: 48% 52% 46% 54% / 47% 46% 54% 53%;
     }
-    45% {
-      transform: scale(0.99, 1.015);
-      border-radius: 52% 48% 54% 46% / 52% 54% 46% 48%;
-    }
-    70% {
-      transform: scale(1.015, 0.99);
+    50% {
+      transform: scale(1.04) rotate(8deg);
     }
   }
   @keyframes panel-reveal {
@@ -753,11 +734,12 @@
     .bubble-visual {
       transition: none;
     }
-    .jelly,
+    .jelly::before,
     .liquid,
     .bubble-visual,
     .panel-surface {
       animation: none;
+      will-change: auto;
     }
   }
 </style>

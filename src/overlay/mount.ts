@@ -1,8 +1,7 @@
 import { mount } from 'svelte'
 
 import Hud from './components/Hud.svelte'
-import { dashboardStore, liveStore, storageError } from './store'
-import { get } from 'svelte/store'
+import { dashboardStore, liveStore, nowStore, storageError } from './store'
 import { localDay } from './summary'
 
 export async function mountOverlay(target: HTMLElement = document.body): Promise<ShadowRoot> {
@@ -33,23 +32,44 @@ export async function mountOverlay(target: HTMLElement = document.body): Promise
     },
     () => {},
   )
+  let refreshedDay = ''
   const refreshDashboard = () => {
     const before = revision
     return window.codexracker.snapshot().then(
       (snapshot) => {
-        if (before === revision) dashboardStore.set(snapshot)
+        refreshedDay = snapshot.todayDate
+        if (before === revision) {
+          dashboardStore.set(snapshot)
+          storageError.set('')
+        }
       },
       () => storageError.set('本機紀錄讀取失敗。請確認檔案完整並重新啟動。'),
     )
   }
   // Restore saved settings before resize observers can persist the initial layout.
   await refreshDashboard()
+  let clock: ReturnType<typeof setTimeout>
+  const refreshClock = () => {
+    clearTimeout(clock)
+    const now = new Date()
+    nowStore.set(now.getTime())
+    if (refreshedDay !== localDay(now)) void refreshDashboard()
+    clock = setTimeout(refreshClock, 60000 - (now.getTime() % 60000))
+  }
+  refreshClock()
   mount(Hud, { target: shadowRoot })
-  const midnight = setInterval(() => {
-    if (get(dashboardStore).todayDate !== localDay(new Date())) void refreshDashboard()
-  }, 60000)
-  window.addEventListener('pagehide', () => clearInterval(midnight), { once: true })
-  window.addEventListener('pagehide', unsubscribe, { once: true })
-  window.addEventListener('pagehide', unsubscribeLive, { once: true })
+  window.addEventListener('focus', refreshClock)
+  document.addEventListener('visibilitychange', refreshClock)
+  window.addEventListener(
+    'pagehide',
+    () => {
+      clearTimeout(clock)
+      window.removeEventListener('focus', refreshClock)
+      document.removeEventListener('visibilitychange', refreshClock)
+      unsubscribe()
+      unsubscribeLive()
+    },
+    { once: true },
+  )
   return shadowRoot
 }

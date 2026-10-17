@@ -61,6 +61,27 @@ describe('daily quota missions', () => {
       dailyMission({ ...weekly, resetsAt: weekly.resetsAt + 86400 }, baseline, now)?.synced,
     ).toBe(false)
   })
+  it('reduces the allocation days at local midnight and keeps the target fixed all day', () => {
+    const midnight = new Date(2026, 9, 18)
+    const nextBaseline = { ...baseline, recordedAt: midnight.toISOString(), remainingPercent: 90 }
+    const quota = { ...weekly, remainingPercent: 90 }
+    expect(dailyMission(quota, nextBaseline, midnight)).toMatchObject({
+      daysLeft: 6,
+      target: 15,
+      used: 0,
+      remaining: 15,
+      synced: true,
+    })
+    expect(
+      dailyMission({ ...quota, remainingPercent: 85 }, nextBaseline, new Date(2026, 9, 18, 23, 59)),
+    ).toMatchObject({ daysLeft: 6, target: 15, used: 5, remaining: 10 })
+  })
+  it('allocates remaining quota on the reset date until the exact reset time', () => {
+    const resetDay = new Date(2026, 9, 24)
+    const quota = { ...weekly, remainingPercent: 12 }
+    expect(dailyMission(quota, undefined, resetDay)).toMatchObject({ daysLeft: 1, target: 12 })
+    expect(dailyMission(quota, undefined, new Date(weekly.resetsAt * 1000))).toBeNull()
+  })
   it('persists today across restarts, rolls over at midnight and clears on account changes', async () => {
     directory = await mkdtemp(path.join(os.tmpdir(), 'tokentracker-mission-'))
     const file = path.join(directory, 'metrics.json')

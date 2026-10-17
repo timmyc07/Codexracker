@@ -181,6 +181,8 @@ try {
   await writeFile('signed-overlay-hud.png', Buffer.from(shot.data, 'base64'))
   await click('最小化')
   await eventual(`${text('bubble-remaining')} === '95%'`)
+  assert.equal(await evaluate(`${hud}.querySelector('.restore').textContent.trim()`), '95%')
+  assert.equal(await evaluate(`${hud}.querySelector('.restore svg')`), null)
   await eventual(`(async()=> (await window.codexracker.snapshot()).settings.minimized)()`)
   samePoint(await rectangle(), bounds)
   const stableWrites = settingsWrites
@@ -299,7 +301,7 @@ try {
   await writeFile('signed-overlay-bubble.png', Buffer.from(bubble.data, 'base64'))
   assert.match(
     await evaluate(
-      `getComputedStyle(document.querySelector('codex-token-cache-hud').shadowRoot.querySelector('.jelly')).animationName`,
+      `getComputedStyle(document.querySelector('codex-token-cache-hud').shadowRoot.querySelector('.jelly'),'::before').animationName`,
     ),
     /jelly-breathe/,
   )
@@ -310,7 +312,7 @@ try {
   )
   assert.equal(
     await evaluate(
-      `getComputedStyle(document.querySelector('codex-token-cache-hud').shadowRoot.querySelector('.jelly')).animationName`,
+      `getComputedStyle(document.querySelector('codex-token-cache-hud').shadowRoot.querySelector('.jelly'),'::before').animationName`,
     ),
     'none',
   )

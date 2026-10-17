@@ -10,7 +10,17 @@ export function dailyMission(
   now = new Date(),
 ) {
   if (!weekly?.resetsAt || weekly.resetsAt * 1000 <= now.getTime()) return null
-  const daysLeft = Math.min(7, Math.ceil((weekly.resetsAt * 1000 - now.getTime()) / day))
+  const reset = new Date(weekly.resetsAt * 1000)
+  // Count local dates so the daily allocation changes at midnight, not at the reset hour.
+  const daysLeft = Math.min(
+    7,
+    Math.max(
+      1,
+      (Date.UTC(reset.getFullYear(), reset.getMonth(), reset.getDate()) -
+        Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) /
+        day,
+    ),
+  )
   const current =
     baseline &&
     baseline.resetsAt === weekly.resetsAt &&
@@ -18,10 +28,7 @@ export function dailyMission(
       ? baseline
       : undefined
   const starting = current?.remainingPercent ?? weekly.remainingPercent
-  const daysAtStart = current
-    ? Math.min(7, Math.ceil((weekly.resetsAt * 1000 - Date.parse(current.recordedAt)) / day))
-    : daysLeft
-  const target = starting / daysAtStart
+  const target = starting / daysLeft
   const used = Math.max(0, starting - weekly.remainingPercent)
   return {
     daysLeft,

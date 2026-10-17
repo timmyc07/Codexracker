@@ -13,7 +13,8 @@ export function createController(
   const clocks = new Map<string, { total: number; metrics: UsageMetrics }>()
   const changed = (value: unknown) => broadcast(channels.changed, value)
   return async (channel: string, value: unknown): Promise<unknown> => {
-    if (channel === channels.snapshot) return repository.snapshot()
+    if (channel === channels.snapshot)
+      return live.weekly ? repository.trackQuota(live.weekly) : repository.snapshot()
     if (channel === channels.settings) {
       const snapshot = await repository.saveSettings(value)
       changed(snapshot)

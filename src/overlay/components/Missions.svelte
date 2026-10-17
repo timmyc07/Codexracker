@@ -42,7 +42,7 @@
     </div>
     <p class="note">
       {mission.synced
-        ? '從今日首次同步起計算，目標會保存至當日結束。'
+        ? '每日 00:00 歸零今日進度，未用完額度會分攤至剩餘天數。'
         : '正在保存今日起點，暫顯示日均建議。'}每日目標＝當日起點剩餘額度 ÷ 剩餘天數。
     </p>
     {#if $liveStore.limitsStatus !== 'ready'}<p class="note">

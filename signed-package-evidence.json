@@ -1,7 +1,7 @@
 {
-  "testedAt": "2026-10-17T16:21:44.137Z",
+  "testedAt": "2026-10-17T16:34:42.690Z",
   "result": "passed",
-  "releaseSha256": "875b246b0ec0eacf5b73f966331e0c41645b3a5226f3adef5b9cef6768cb0b79",
+  "releaseSha256": "e687568f64b85ac987efa4229e754c808d5b1c5b9dd363e509b1a46775ebc56d",
   "checks": [
     "portable-zip-integrity-with-officially-signed-node-as-only-executable",
     "bundled-node-starts-visible-signed-app-with-mounted-overlay-and-single-instance",

@@ -7,6 +7,7 @@ import { emptyLive } from '../interceptor/live'
 export const dashboardStore = writable(dashboard([], defaultSettings()))
 export const storageError = writable('')
 export const liveStore = writable(emptyLive())
+export const nowStore = writable(Date.now())
 
 export async function saveSettings(settings: Settings) {
   try {
