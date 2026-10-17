@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onMount, tick } from 'svelte'
+  import { Spring } from 'svelte/motion'
   import { get } from 'svelte/store'
   import { dashboardStore, liveStore, saveSettings, storageError } from '../store'
   import type { Settings } from '../../storage/schema'
@@ -7,65 +8,99 @@
   import Logo from './Logo.svelte'
   import Missions from './Missions.svelte'
 
-  let panel: HTMLElement
-  let position = { x: 16, y: 16 }
-  let dragging = false
+  let panel = $state<HTMLElement>()
+  const initial = get(dashboardStore).settings
+  let anchor = { ...initial.position }
+  let position = { ...initial.position }
+  let minimized = $state(initial.minimized)
+  const motion = new Spring(position, { stiffness: 0.18, damping: 0.85, precision: 0.1 })
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+  let dragging = $state(false)
+  let pointerId: number | null = null
+  let suppressClick = false
   let start = { x: 0, y: 0, left: 0, top: 0 }
-  let admin = false
-  let history = false
-  let draft: Settings
-  let saving = false
-  let formError = ''
-  let now = Date.now()
-  $: settings = $dashboardStore.settings
-  $: if (!dragging) position = clamp(settings.position.x, settings.position.y, settings.minimized)
-  $: latest = $dashboardStore.latestSummary
-  $: total = $dashboardStore.total
-  $: remaining =
+  let admin = $state(false)
+  let history = $state(false)
+  let draft = $state<Settings>(structuredClone(initial))
+  let saving = $state(false)
+  let formError = $state('')
+  let now = $state(Date.now())
+  const settings = $derived($dashboardStore.settings)
+  const latest = $derived($dashboardStore.latestSummary)
+  const total = $derived($dashboardStore.total)
+  const remaining = $derived(
     $liveStore.weekly && (!$liveStore.weekly.resetsAt || $liveStore.weekly.resetsAt * 1000 > now)
       ? $liveStore.weekly.remainingPercent
-      : undefined
+      : undefined,
+  )
   const number = (value: number | undefined) =>
     value === undefined ? '未知' : value.toLocaleString()
-  function clamp(x: number, y: number, minimized = settings.minimized) {
-    const width = minimized ? 88 : Math.min(440, window.innerWidth - 16)
-    const height = minimized ? 88 : Math.min(panel?.offsetHeight ?? 700, window.innerHeight - 16)
+  function clamp(x: number, y: number) {
+    const width = panel?.offsetWidth ?? 88
+    const height = panel?.offsetHeight ?? 88
     return {
-      x: Math.max(0, Math.min(x, window.innerWidth - width)),
-      y: Math.max(0, Math.min(y, window.innerHeight - height)),
+      x: Math.max(8, Math.min(x, window.innerWidth - width - 8)),
+      y: Math.max(8, Math.min(y, window.innerHeight - height - 8)),
     }
   }
-  async function persistPosition(minimized = settings.minimized) {
-    let next = clamp(position.x, position.y, minimized)
-    if (minimized) {
-      const right = Math.max(0, window.innerWidth - 88)
-      next = { ...next, x: next.x < right / 2 ? 0 : right }
-    }
-    position = next
+  function place(x: number, y: number, instant = false) {
+    position = clamp(x, y)
+    void motion.set(position, { instant: instant || reducedMotion.matches })
+  }
+  async function persistPosition() {
     const current = get(dashboardStore).settings
-    if (
-      current.position.x === next.x &&
-      current.position.y === next.y &&
-      current.minimized === minimized
-    )
-      return
-    await saveSettings({ ...current, position: next, minimized })
+    await saveSettings({ ...current, position: { ...anchor }, minimized })
+  }
+  async function togglePanel(next: boolean) {
+    minimized = next
+    await tick()
+    place(anchor.x, anchor.y)
+    await persistPosition()
   }
   function pointerDown(event: PointerEvent) {
-    if (event.button !== 0 || (event.target as HTMLElement).closest('button,input,select')) return
-    dragging = true
+    const handle = event.currentTarget as HTMLElement
+    const control = (event.target as Element).closest('button,input,select,a,summary')
+    if (
+      !event.isPrimary ||
+      event.button !== 0 ||
+      pointerId !== null ||
+      (control && control !== handle)
+    )
+      return
+    pointerId = event.pointerId
+    suppressClick = false
+    position = { ...motion.current }
+    void motion.set(position, { instant: true })
     start = { x: event.clientX, y: event.clientY, left: position.x, top: position.y }
-    ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+    handle.setPointerCapture(event.pointerId)
   }
   function pointerMove(event: PointerEvent) {
-    if (!dragging) return
-    position = clamp(start.left + event.clientX - start.x, start.top + event.clientY - start.y)
+    if (event.pointerId !== pointerId) return
+    const dx = event.clientX - start.x,
+      dy = event.clientY - start.y
+    if (!dragging && Math.hypot(dx, dy) < 4) return
+    dragging = true
+    suppressClick = true
+    place(start.left + dx, start.top + dy, true)
+    anchor = { ...position }
   }
-  async function pointerUp() {
-    if (!dragging) return
-    await persistPosition()
+  function pointerUp(event: PointerEvent) {
+    if (event.pointerId !== pointerId) return
+    if (event.type === 'pointerup') pointerMove(event)
+    const moved = dragging
+    pointerId = null
     dragging = false
-    position = { ...get(dashboardStore).settings.position }
+    const handle = event.currentTarget as HTMLElement
+    if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId)
+    if (moved) void persistPosition()
+  }
+  function restore(event: MouseEvent) {
+    if (suppressClick && event.detail !== 0) {
+      suppressClick = false
+      event.preventDefault()
+      return
+    }
+    void togglePanel(false)
   }
   function moveByKey(event: KeyboardEvent) {
     if (event.target !== event.currentTarget) return
@@ -78,7 +113,8 @@
     const move = moves[event.key]
     if (!move) return
     event.preventDefault()
-    position = clamp(position.x + move[0], position.y + move[1])
+    place(position.x + move[0], position.y + move[1])
+    anchor = { ...position }
     void persistPosition()
   }
   function openAdmin() {
@@ -92,8 +128,8 @@
     formError = ''
     const valid = await saveSettings({
       ...draft,
-      position: settings.position,
-      minimized: settings.minimized,
+      position: { ...anchor },
+      minimized,
     })
     saving = false
     if (valid) admin = false
@@ -104,17 +140,20 @@
       now = Date.now()
     }, 60000)
     const resize = () => {
-      void persistPosition()
+      if (pointerId === null) place(anchor.x, anchor.y)
     }
-    const size = new ResizeObserver(() => {
-      if (!dragging) void persistPosition()
-    })
-    size.observe(panel)
+    const size = new ResizeObserver(resize)
+    // Layout stays local; usage snapshots and resize observations never write it back.
+    place(anchor.x, anchor.y, true)
+    size.observe(panel!)
     window.addEventListener('resize', resize)
+    const reduce = () => place(anchor.x, anchor.y, true)
+    reducedMotion.addEventListener('change', reduce)
     return () => {
       clearInterval(clock)
       size.disconnect()
       window.removeEventListener('resize', resize)
+      reducedMotion.removeEventListener('change', reduce)
     }
   })
 </script>
@@ -122,149 +161,160 @@
 <section
   bind:this={panel}
   class="hud"
-  class:minimized={settings.minimized}
-  style:left={`${position.x}px`}
-  style:top={`${position.y}px`}
+  class:minimized
+  class:dragging
+  style:transform={`translate3d(${motion.current.x}px, ${motion.current.y}px, 0)`}
   style:opacity={settings.opacity}
   aria-label="TokenTracker 用量追蹤"
 >
-  {#if settings.minimized}
+  {#if minimized}
     <button
       class="restore"
       aria-label="展開用量追蹤"
       title={`TokenTracker · 本週剩餘 ${remaining === undefined ? '待同步' : `${Math.round(remaining)}%`}`}
-      onclick={() => persistPosition(false)}
-    >
-      <span class="jelly" class:low={remaining !== undefined && remaining <= 20}>
-        <span class="liquid" style:height={`${remaining ?? 0}%`}></span>
-        <span class="bubble-logo"><Logo /></span>
-        <strong data-testid="bubble-remaining"
-          >{remaining === undefined ? '—' : `${Math.round(remaining)}%`}</strong
-        >
-        <span class="bubble-caption"
-          >{$liveStore.limitsStatus === 'unavailable'
-            ? '上次剩餘'
-            : remaining === undefined
-              ? '待同步'
-              : '本週剩餘'}</span
-        >
-      </span>
-    </button>
-  {:else}
-    <header
-      role="toolbar"
-      tabindex="0"
-      aria-label="拖曳或方向鍵移動用量面板"
-      onkeydown={moveByKey}
       onpointerdown={pointerDown}
       onpointermove={pointerMove}
       onpointerup={pointerUp}
       onpointercancel={pointerUp}
+      onlostpointercapture={pointerUp}
+      onkeydown={moveByKey}
+      onclick={restore}
     >
-      <div class="brand">
-        <span class="brand-logo"><Logo /></span>
-        <div><strong>TokenTracker</strong><small>每一點額度，都有好去處。</small></div>
-      </div>
-      <div class="actions">
-        <button
-          aria-label="本機紀錄"
-          aria-expanded={history}
-          onclick={() => {
-            history = !history
-            admin = false
-          }}>紀錄</button
-        >
-        <button aria-label="管理設定" aria-expanded={admin} onclick={openAdmin}>設定</button>
-        <button aria-label="最小化" onclick={() => persistPosition(true)}>−</button>
-      </div>
-    </header>
-    <div class="content">
-      {#if $storageError}<p class="error" role="alert">{$storageError}</p>{/if}
-      <div class="token-totals" aria-label="Token 統計">
-        <div>
-          <span>累計 Token</span><strong data-testid="total-tokens"
-            >{number(total.totalTokens)}</strong
-          ><small>本機追蹤總計</small>
-        </div>
-        <div>
-          <span>今日 Token</span><strong data-testid="today-tokens"
-            >{number($dashboardStore.today.totalTokens)}</strong
-          ><small>依本機日期統計</small>
-        </div>
-      </div>
-      <RuntimeStatus {now} />
-      <Missions {now} />
-      <details class="breakdown">
-        <summary>Token 用量明細</summary>
-        <table aria-label="實測 Token 用量">
-          <thead><tr><th>實測 Token</th><th>最近增量</th><th>本機累計</th></tr></thead>
-          <tbody>
-            <tr
-              ><th>輸入</th><td data-testid="latest-input">{number(latest.inputTokens)}</td><td
-                data-testid="total-input">{number(total.inputTokens)}</td
-              ></tr
-            >
-            <tr
-              ><th>輸出</th><td data-testid="latest-output">{number(latest.outputTokens)}</td><td
-                data-testid="total-output">{number(total.outputTokens)}</td
-              ></tr
-            >
-            <tr
-              ><th>快取輸入</th><td>{number(latest.promptCacheHitTokens)}</td><td
-                >{number(total.promptCacheHitTokens)}</td
-              ></tr
-            >
-          </tbody>
-        </table>
-        <div class="counts">
-          <span>用量更新 <b data-testid="updates">{total.usageUpdateCount}</b> 次</span><span
-            >快取命中 <b>{total.cacheHitCount}</b> 次</span
+      <span class="bubble-visual"
+        ><span class="jelly" class:low={remaining !== undefined && remaining <= 20}>
+          <span class="liquid" style:height={`${remaining ?? 0}%`}></span>
+          <span class="bubble-logo"><Logo /></span>
+          <strong data-testid="bubble-remaining"
+            >{remaining === undefined ? '—' : `${Math.round(remaining)}%`}</strong
           >
-        </div>
-        <p class="note">快取已包含在輸入中 · 累計為本機追蹤紀錄</p>
-      </details>
-      {#if admin && draft}
-        <form
-          onsubmit={(event) => {
-            event.preventDefault()
-            void submit()
-          }}
-          aria-label="顯示設定"
-        >
-          <h2>TokenTracker 顯示設定</h2>
-          <label
-            >面板不透明度 <input
-              aria-label="面板不透明度"
-              type="number"
-              min="0.3"
-              max="1"
-              step="0.01"
-              bind:value={draft.opacity}
-              required
-            /></label
+          <span class="bubble-caption"
+            >{$liveStore.limitsStatus === 'unavailable'
+              ? '上次剩餘'
+              : remaining === undefined
+                ? '待同步'
+                : '本週剩餘'}</span
           >
-          {#if formError}<p class="error" role="alert">{formError}</p>{/if}
-          <div class="actions">
-            <button type="submit" disabled={saving}>{saving ? '儲存中…' : '儲存設定'}</button
-            ><button type="button" onclick={() => (admin = false)}>取消</button>
+        </span></span
+      >
+    </button>
+  {:else}
+    <div class="panel-surface">
+      <header
+        role="toolbar"
+        tabindex="0"
+        aria-label="拖曳或方向鍵移動用量面板"
+        onkeydown={moveByKey}
+        onpointerdown={pointerDown}
+        onpointermove={pointerMove}
+        onpointerup={pointerUp}
+        onpointercancel={pointerUp}
+        onlostpointercapture={pointerUp}
+      >
+        <div class="brand">
+          <span class="brand-logo"><Logo /></span>
+          <div><strong>TokenTracker</strong><small>每一點額度，都有好去處。</small></div>
+        </div>
+        <div class="actions">
+          <button
+            aria-label="本機紀錄"
+            aria-expanded={history}
+            onclick={() => {
+              history = !history
+              admin = false
+            }}>紀錄</button
+          >
+          <button aria-label="管理設定" aria-expanded={admin} onclick={openAdmin}>設定</button>
+          <button aria-label="最小化" onclick={() => togglePanel(true)}>−</button>
+        </div>
+      </header>
+      <div class="content">
+        {#if $storageError}<p class="error" role="alert">{$storageError}</p>{/if}
+        <div class="token-totals" aria-label="Token 統計">
+          <div>
+            <span>累計 Token</span><strong data-testid="total-tokens"
+              >{number(total.totalTokens)}</strong
+            ><small>本機追蹤總計</small>
           </div>
-        </form>
-      {/if}
-      {#if history}
-        <div class="history">
-          <h2>最近 20 筆本機紀錄</h2>
-          {#each $dashboardStore.recent as record, index (index)}
-            <article>
-              <time>{new Date(record.recordedAt).toLocaleString()}</time>
-              <div>
-                {record.model ?? '未知模型'} · 輸入 {number(record.inputTokens)} · 輸出 {number(
-                  record.outputTokens,
-                )} · 快取 {number(record.promptCacheHitTokens)}
-              </div>
-            </article>
-          {:else}<p>尚未收到新的用量增量。</p>{/each}
+          <div>
+            <span>今日 Token</span><strong data-testid="today-tokens"
+              >{number($dashboardStore.today.totalTokens)}</strong
+            ><small>依本機日期統計</small>
+          </div>
         </div>
-      {/if}
+        <RuntimeStatus {now} />
+        <Missions {now} />
+        <details class="breakdown">
+          <summary>Token 用量明細</summary>
+          <table aria-label="實測 Token 用量">
+            <thead><tr><th>實測 Token</th><th>最近增量</th><th>本機累計</th></tr></thead>
+            <tbody>
+              <tr
+                ><th>輸入</th><td data-testid="latest-input">{number(latest.inputTokens)}</td><td
+                  data-testid="total-input">{number(total.inputTokens)}</td
+                ></tr
+              >
+              <tr
+                ><th>輸出</th><td data-testid="latest-output">{number(latest.outputTokens)}</td><td
+                  data-testid="total-output">{number(total.outputTokens)}</td
+                ></tr
+              >
+              <tr
+                ><th>快取輸入</th><td>{number(latest.promptCacheHitTokens)}</td><td
+                  >{number(total.promptCacheHitTokens)}</td
+                ></tr
+              >
+            </tbody>
+          </table>
+          <div class="counts">
+            <span>用量更新 <b data-testid="updates">{total.usageUpdateCount}</b> 次</span><span
+              >快取命中 <b>{total.cacheHitCount}</b> 次</span
+            >
+          </div>
+          <p class="note">快取已包含在輸入中 · 累計為本機追蹤紀錄</p>
+        </details>
+        {#if admin && draft}
+          <form
+            onsubmit={(event) => {
+              event.preventDefault()
+              void submit()
+            }}
+            aria-label="顯示設定"
+          >
+            <h2>TokenTracker 顯示設定</h2>
+            <label
+              >面板不透明度 <input
+                aria-label="面板不透明度"
+                type="number"
+                min="0.3"
+                max="1"
+                step="0.01"
+                bind:value={draft.opacity}
+                required
+              /></label
+            >
+            {#if formError}<p class="error" role="alert">{formError}</p>{/if}
+            <div class="actions">
+              <button type="submit" disabled={saving}>{saving ? '儲存中…' : '儲存設定'}</button
+              ><button type="button" onclick={() => (admin = false)}>取消</button>
+            </div>
+          </form>
+        {/if}
+        {#if history}
+          <div class="history">
+            <h2>最近 20 筆本機紀錄</h2>
+            {#each $dashboardStore.recent as record, index (index)}
+              <article>
+                <time>{new Date(record.recordedAt).toLocaleString()}</time>
+                <div>
+                  {record.model ?? '未知模型'} · 輸入 {number(record.inputTokens)} · 輸出 {number(
+                    record.outputTokens,
+                  )} · 快取 {number(record.promptCacheHitTokens)}
+                </div>
+              </article>
+            {:else}<p>尚未收到新的用量增量。</p>{/each}
+          </div>
+        {/if}
+      </div>
     </div>
   {/if}
 </section>
@@ -275,6 +325,8 @@
   }
   .hud {
     position: fixed;
+    left: 0;
+    top: 0;
     width: min(440px, calc(100vw - 16px));
     max-height: calc(100vh - 16px);
     overflow: auto;
@@ -293,6 +345,13 @@
     scrollbar-width: thin;
     scrollbar-color: #d6c3ea transparent;
   }
+  .hud.dragging {
+    will-change: transform;
+  }
+  .panel-surface {
+    animation: panel-reveal 180ms cubic-bezier(0.22, 1, 0.36, 1);
+    transform-origin: 40px 40px;
+  }
   .hud.minimized {
     width: 88px;
     height: 88px;
@@ -310,6 +369,9 @@
     cursor: grab;
     touch-action: none;
     user-select: none;
+  }
+  .dragging header {
+    cursor: grabbing;
   }
   .brand {
     display: flex;
@@ -392,14 +454,39 @@
     border: 0;
     background: transparent;
     border-radius: 50%;
-    transition: transform 0.5s cubic-bezier(0.34, 1.8, 0.5, 1);
+    transition: none;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-drag: none;
   }
   .restore:hover {
-    transform: translateY(-3px) scale(1.07);
+    transform: none;
     background: transparent;
   }
-  .restore:active {
-    transform: scale(1.15, 0.8);
+  .bubble-visual {
+    display: block;
+    width: 78px;
+    height: 78px;
+    pointer-events: none;
+    transition: transform 220ms cubic-bezier(0.34, 1.5, 0.5, 1);
+    animation: bubble-reveal 220ms cubic-bezier(0.22, 1.4, 0.36, 1);
+  }
+  .restore:hover .bubble-visual {
+    transform: scale(1.04);
+  }
+  .restore:active .bubble-visual {
+    transform: scale(1.06, 0.94);
+  }
+  .dragging .restore {
+    cursor: grabbing;
+  }
+  .dragging .bubble-visual {
+    transform: scale(1.03, 0.97);
+  }
+  .dragging .jelly,
+  .dragging .liquid {
+    animation-play-state: paused;
   }
   .jelly {
     position: relative;
@@ -470,15 +557,35 @@
   @keyframes jelly-breathe {
     0%,
     100% {
-      transform: translateY(0) scale(1, 1);
+      transform: scale(1, 1);
       border-radius: 48% 52% 46% 54% / 47% 46% 54% 53%;
     }
     45% {
-      transform: translateY(-2px) scale(0.97, 1.03);
+      transform: scale(0.99, 1.015);
       border-radius: 52% 48% 54% 46% / 52% 54% 46% 48%;
     }
     70% {
-      transform: translateY(1px) scale(1.03, 0.97);
+      transform: scale(1.015, 0.99);
+    }
+  }
+  @keyframes panel-reveal {
+    from {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  @keyframes bubble-reveal {
+    from {
+      opacity: 0;
+      transform: scale(0.82);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
     }
   }
   @keyframes water-sway {
@@ -642,11 +749,14 @@
   }
   @media (prefers-reduced-motion: reduce) {
     button,
-    .liquid {
+    .liquid,
+    .bubble-visual {
       transition: none;
     }
     .jelly,
-    .liquid {
+    .liquid,
+    .bubble-visual,
+    .panel-surface {
       animation: none;
     }
   }

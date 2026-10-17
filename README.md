@@ -17,11 +17,12 @@ Windows Codex 的 Token、快取與額度追蹤工具。0.5 直接啟動已安�
 ## 保留的功能
 
 - **TT 水光浮球與大字面板**：浮球有呼吸、水波與按壓回彈動畫，餘額直接可見；減少動態效果時停用動畫。主要文字 15–16px、數字 27–40px。
+- **浮球與面板移動**：滑鼠或觸控可拖曳浮球，方向鍵也可移動。點擊才展開，拖曳放開不會誤開面板。收合保留浮球錨點，靠近邊緣時只調整面板顯示範圍；用量刷新、內容高度與設定回應不會拉動位置。拖曳時以 transform 跟手，放開才儲存，並使用 Svelte 內建 Spring 與內層水光動畫呈現回彈；滑鼠感應區保持固定。
 - **累計／今日 Token**：輸入加輸出，快取已包含在輸入中，不重複相加。今日依本機 00:00 起算，開著面板跨日會更新。空紀錄顯示 0，缺必要欄位顯示未知。這是本機追蹤到的增量，不是帳戶完整歷史。
 - **本週與短期剩餘額度**：觀察 Codex 的額度回應／通知，週視窗為 10,080 分鐘，顯示 `100 - usedPercent`。每 60 秒刷新，可手動更新；刷新失敗會標示並保留上次資料，過了重設時間則等待同步。額度百分比不能換算成確切剩餘 Token。
 - **每日任務**：今日首次同步剩餘額度 ÷ 當時剩餘使用日（不足 24 小時算一天，上限 7 天）。100%／7 天約每天 14.29%。起點與固定目標保存至當日結束，顯示已用、還需使用與完成進度；隔日／週重設後重算。只能計算首次同步後的當日消耗，不會自動發送模型任務。
 - **即時狀態與模型**：顯示思考、輸出、完成、中止或失敗，觀察模型回應與已接受的回合覆寫。串流字數／片段即時更新；精確 Token 等服務端回報，不以字數估算。
-- **操作與紀錄**：拖曳標題或用方向鍵移動、貼邊縮小、最近 20 筆紀錄、不透明度設定、可展開的 Token 明細與即時回合資訊。
+- **操作與紀錄**：拖曳標題或浮球、原位收合、最近 20 筆紀錄、不透明度設定、可展開的 Token 明細與即時回合資訊。
 
 ## 資料與 Windows 防護
 
@@ -62,5 +63,7 @@ node launcher/install-shortcut.mjs $release.directory
 ## 參考
 
 設計前搜尋並參考 [Playwright 的本機管線傳輸](https://github.com/microsoft/playwright/blob/main/packages/playwright-core/src/server/pipeTransport.ts)，實作僅使用 Node 標準庫。沿用 [Svelte](https://github.com/sveltejs/svelte) 與 [lowdb](https://github.com/typicode/lowdb)。官方訊息介面另以 REA 做有限範圍檢查，行為以實際官方 Renderer 驗證為準。
+
+浮球互動參考 [interact.js 的 transform 拖曳](https://github.com/taye/interact.js/blob/main/docs/draggable.md) 與 [Motion 的拖曳門檻／逐幀處理](https://github.com/motiondivision/motion/blob/main/packages/framer-motion/src/gestures/pan/PanSession.ts)，套用於既有 Svelte 5 與內建 Spring，沒有增加拖曳或動畫套件。桌面驗收包含 45 幀位置穩定、滑鼠／觸控／方向鍵、拖曳只寫入一次、拖後不誤點、快速切換及重啟還原。
 
 舊的補丁驗證報告留作歷史紀錄；`firewall-validation.json` 描述的是已移除的 0.4.1 架構限制，不代表 0.5 的啟動結果。

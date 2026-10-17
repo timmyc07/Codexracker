@@ -1,8 +1,9 @@
 {
-  "testedAt": "2026-10-17T16:00:58.988Z",
+  "testedAt": "2026-10-17T16:20:46.490Z",
   "result": "passed",
   "checks": [
     "official-signed-renderer-model-stream-total-and-today-tokens-fixed-daily-mission",
+    "stable-collapse-mouse-and-touch-drag-keyboard-click-suppression-and-rapid-toggles",
     "settings-history-drag-jelly-bubble-and-reduced-motion",
     "valid-official-signature-and-no-lan-tcp-listeners",
     "restart-preserves-tokens-daily-baseline-settings-without-history-recount-and-fits-narrow-window",
@@ -11,12 +12,20 @@
   "realModelRequestsSent": false,
   "officialFilesModified": false,
   "firewallSettingsChangedByTracker": false,
-  "applicationVersion": "26.1013.3656.0",
+  "applicationVersion": "26.1013.4894.0",
+  "motion": {
+    "stableFrames": 45,
+    "mouseDragWrites": 1,
+    "mouse": true,
+    "touch": true,
+    "keyboard": true,
+    "rapidToggleCycles": 3
+  },
   "signature": "Valid",
   "observedTcpListeners": [],
   "officialFileSha256": {
-    "ChatGPT.exe": "28d75915964e3bf43f2a4ae568f7c78c51e5955fe36970bdecb6332e64e4c3de",
-    "chrome.dll": "6e82f83587479d0e7f8faf8a91a834dbbdf1a320a4f2362b855d92c5f651fe81",
-    "resources/app.asar": "163a18c84db57ad5c50222b313dc4d11d45febc03ec065b516ba9f0380f2eb3f"
+    "ChatGPT.exe": "2f61eaeb01dcee7fd18d572fbb338c88b686c0d891427487fdd182afdd64b4f6",
+    "chrome.dll": "81c4a91d7c0480f9a41ac1d97ed7f13d3e05c06817765b4b9477aa7981427423",
+    "resources/app.asar": "bbec1d64e135b718a154b31655bb8ad9a39472bac1b2cabba991a9d97a339dd8"
   }
 }

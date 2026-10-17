@@ -40,11 +40,16 @@ const report = {
   applicationVersion: application.version,
 }
 let session
+let settingsWrites = 0
 const launch = () =>
   openSignedSession(application.directory, path.join(root, 'profile'), code, (broadcast) => {
     const controller = createController(repositoryFile, broadcast)
     return async (channel, value) => {
       if (channel === 'codexracker:snapshot') await delay(250)
+      if (channel === 'codexracker:settings') {
+        settingsWrites++
+        await delay(120)
+      }
       return controller(channel, value)
     }
   })
@@ -66,6 +71,29 @@ const text = (testid) =>
 const click = (label) =>
   evaluate(
     `document.querySelector('codex-token-cache-hud').shadowRoot.querySelector('button[aria-label="${label}"]').click()`,
+  )
+const hud = `document.querySelector('codex-token-cache-hud').shadowRoot`
+const rectangle = (selector = '.hud') =>
+  evaluate(
+    `(()=>{const r=${hud}.querySelector('${selector}').getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height}})()`,
+  )
+const samePoint = (actual, expected) => {
+  assert.ok(
+    Math.abs(actual.x - expected.x) < 0.5 && Math.abs(actual.y - expected.y) < 0.5,
+    `Unexpected floating position: ${JSON.stringify({ actual, expected })}`,
+  )
+}
+const mouse = (type, point) =>
+  session.pipe.call(
+    'Input.dispatchMouseEvent',
+    {
+      type,
+      ...point,
+      button: 'left',
+      buttons: type === 'mouseReleased' ? 0 : 1,
+      ...(type === 'mouseMoved' ? {} : { clickCount: 1 }),
+    },
+    [...session.pages.keys()][0],
   )
 try {
   session = await launch()
@@ -153,6 +181,108 @@ try {
   await writeFile('signed-overlay-hud.png', Buffer.from(shot.data, 'base64'))
   await click('最小化')
   await eventual(`${text('bubble-remaining')} === '95%'`)
+  await eventual(`(async()=> (await window.codexracker.snapshot()).settings.minimized)()`)
+  samePoint(await rectangle(), bounds)
+  const stableWrites = settingsWrites
+  const stablePositions = await evaluate(
+    `(async()=>{const positions=[];for(let i=0;i<45;i++){await new Promise(requestAnimationFrame);const r=${hud}.querySelector('.hud').getBoundingClientRect();positions.push({x:r.x,y:r.y})}return positions})()`,
+  )
+  for (const point of stablePositions) samePoint(point, bounds)
+  await quota(95)
+  await evaluate(`window.dispatchEvent(new Event('resize'))`)
+  await delay(250)
+  samePoint(await rectangle(), bounds)
+  assert.equal(settingsWrites, stableWrites, 'Usage/resize must not write floating position')
+
+  const ball = await rectangle('.restore')
+  const viewport = await evaluate('({width:innerWidth,height:innerHeight})')
+  const destination = {
+    x: Math.min(ball.x + 170, viewport.width - 100),
+    y: Math.min(ball.y + 90, viewport.height - 100),
+  }
+  const grip = { x: ball.x + 44, y: ball.y + 44 }
+  await mouse('mousePressed', grip)
+  for (let i = 1; i <= 12; i++) {
+    await mouse('mouseMoved', {
+      x: grip.x + ((destination.x - ball.x) * i) / 12,
+      y: grip.y + ((destination.y - ball.y) * i) / 12,
+    })
+    if (i === 6) await quota(95)
+    await evaluate('new Promise(requestAnimationFrame)')
+  }
+  await evaluate('new Promise(requestAnimationFrame)')
+  assert.equal(settingsWrites, stableWrites, 'Dragging must stay local until release')
+  samePoint(await rectangle(), destination)
+  await mouse('mouseReleased', { x: destination.x + 44, y: destination.y + 44 })
+  await eventual(
+    `(async()=>{const s=await window.codexracker.snapshot();return s.settings.minimized&&Math.abs(s.settings.position.x-${destination.x})<.5&&Math.abs(s.settings.position.y-${destination.y})<.5})()`,
+  )
+  assert.equal(settingsWrites, stableWrites + 1, 'A completed drag must persist once')
+  samePoint(await rectangle(), destination)
+  assert.equal(await evaluate(`${hud}.querySelector('.hud').classList.contains('minimized')`), true)
+
+  await evaluate(
+    `${hud}.querySelector('.restore').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}))`,
+  )
+  const keyboardPosition = { ...destination, y: destination.y + 10 }
+  await eventual(
+    `(async()=> (await window.codexracker.snapshot()).settings.position.y===${keyboardPosition.y})()`,
+  )
+  await delay(450)
+  samePoint(await rectangle(), keyboardPosition)
+
+  await session.pipe.call(
+    'Emulation.setTouchEmulationEnabled',
+    { enabled: true, maxTouchPoints: 2 },
+    pageSession,
+  )
+  const touchGrip = { x: keyboardPosition.x + 44, y: keyboardPosition.y + 44, id: 1 }
+  await session.pipe.call(
+    'Input.dispatchTouchEvent',
+    { type: 'touchStart', touchPoints: [touchGrip] },
+    pageSession,
+  )
+  await session.pipe.call(
+    'Input.dispatchTouchEvent',
+    {
+      type: 'touchMove',
+      touchPoints: [{ ...touchGrip, x: touchGrip.x + 40, y: touchGrip.y - 20 }],
+    },
+    pageSession,
+  )
+  await evaluate('new Promise(requestAnimationFrame)')
+  await session.pipe.call(
+    'Input.dispatchTouchEvent',
+    { type: 'touchEnd', touchPoints: [] },
+    pageSession,
+  )
+  const touchPosition = { x: keyboardPosition.x + 40, y: keyboardPosition.y - 20 }
+  await eventual(
+    `(async()=>{const s=await window.codexracker.snapshot();return s.settings.minimized&&Math.abs(s.settings.position.x-${touchPosition.x})<.5&&Math.abs(s.settings.position.y-${touchPosition.y})<.5})()`,
+  )
+  samePoint(await rectangle(), touchPosition)
+  await session.pipe.call('Emulation.setTouchEmulationEnabled', { enabled: false }, pageSession)
+
+  for (let i = 0; i < 3; i++) {
+    await click('展開用量追蹤')
+    await eventual(`Boolean(${hud}.querySelector('header'))`)
+    await click('最小化')
+    await eventual(`Boolean(${hud}.querySelector('.restore'))`)
+  }
+  await eventual(`(async()=> (await window.codexracker.snapshot()).settings.minimized)()`)
+  await delay(650)
+  samePoint(await rectangle(), touchPosition)
+  report.motion = {
+    stableFrames: stablePositions.length,
+    mouseDragWrites: 1,
+    mouse: true,
+    touch: true,
+    keyboard: true,
+    rapidToggleCycles: 3,
+  }
+  report.checks.push(
+    'stable-collapse-mouse-and-touch-drag-keyboard-click-suppression-and-rapid-toggles',
+  )
   const bubble = await session.pipe.call(
     'Page.captureScreenshot',
     {
